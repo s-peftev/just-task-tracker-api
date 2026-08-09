@@ -1,0 +1,171 @@
+trigger:
+- main
+
+pr:
+- main
+
+pool:
+  name: 'Default'
+
+variables:
+  azureSubscription: 'JTT-SC'
+
+stages:
+
+# ============================================================
+# STAGE 1: Build
+# Publishes API, WebUI (Blazor WASM), Functions and the DbUp
+# Database migrator as 4 independent zip packages.
+# Aspire (AppHost / ServiceDefaults orchestration) is intentionally
+# NOT built here - only the deployable leaf projects are published
+# directly by .csproj path, so AppHost is never touched.
+# ============================================================
+- stage: Build
+  displayName: 'Build Stage'
+  variables:
+    - group: shared-vars
+  jobs:
+    - job: BuildAndPublish
+      displayName: 'Build and publish artifacts'
+      steps:
+        - checkout: self
+
+        - script: |
+            dotnet --info
+          displayName: 'Show .NET SDK info'
+
+        - script: |
+            dotnet restore "$(apiProjectPath)"
+            dotnet restore "$(webUiProjectPath)"
+            dotnet restore "$(functionsProjectPath)"
+            dotnet restore "$(databaseProjectPath)"
+          displayName: 'Restore API, WebUI, Functions, Database'
+
+        - script: |
+            dotnet publish "$(apiProjectPath)" -c $(buildConfiguration) -o "$(Build.ArtifactStagingDirectory)/publish/$(apiArtifactName)" --no-restore
+          displayName: 'Publish API'
+
+        - script: |
+            dotnet publish "$(webUiProjectPath)" -c $(buildConfiguration) -o "$(Build.ArtifactStagingDirectory)/publish/$(webUiArtifactName)-raw" --no-restore
+          displayName: 'Publish WebUI (Blazor WebAssembly)'
+
+        - script: |
+            dotnet publish "$(functionsProjectPath)" -c $(buildConfiguration) -o "$(Build.ArtifactStagingDirectory)/publish/$(functionsArtifactName)" --no-restore
+          displayName: 'Publish Functions'
+
+        - script: |
+            dotnet publish "$(databaseProjectPath)" -c $(buildConfiguration) -o "$(Build.ArtifactStagingDirectory)/publish/$(databaseArtifactName)" --no-restore
+          displayName: 'Publish Database (DbUp migrator)'
+
+        # Blazor WebAssembly (standalone) publish output only contains a
+        # deployable payload under the "wwwroot" subfolder (index.html,
+        # _framework/*, web.config, etc). That subfolder - not the publish
+        # root - is what has to be deployed as the App Service site content.
+        - task: ArchiveFiles@2
+          displayName: 'Zip API package'
+          inputs:
+            rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish/$(apiArtifactName)'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/drop/$(apiArtifactName).zip'
+            replaceExistingArchive: true
+
+        - task: ArchiveFiles@2
+          displayName: 'Zip WebUI package (static wwwroot only)'
+          inputs:
+            rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish/$(webUiArtifactName)-raw/wwwroot'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/drop/$(webUiArtifactName).zip'
+            replaceExistingArchive: true
+
+        - task: ArchiveFiles@2
+          displayName: 'Zip Functions package'
+          inputs:
+            rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish/$(functionsArtifactName)'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/drop/$(functionsArtifactName).zip'
+            replaceExistingArchive: true
+
+        - task: ArchiveFiles@2
+          displayName: 'Zip Database migrator package'
+          inputs:
+            rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/publish/$(databaseArtifactName)'
+            includeRootFolder: false
+            archiveType: 'zip'
+            archiveFile: '$(Build.ArtifactStagingDirectory)/drop/$(databaseArtifactName).zip'
+            replaceExistingArchive: true
+
+        - task: PublishPipelineArtifact@1
+          displayName: 'Publish pipeline artifact (drop)'
+          inputs:
+            targetPath: '$(Build.ArtifactStagingDirectory)/drop'
+            artifact: 'drop'
+            publishLocation: 'pipeline'
+
+# ============================================================
+# STAGE 2: Deploy
+# Runs only on merges into main (not on PR validation builds).
+# Order: DB migrations first, then API / WebUI / Functions app deploys.
+# ============================================================
+- stage: Deploy
+  displayName: 'Deploy to Azure'
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  variables:
+    - group: shared-vars
+    - group: deploy-vars
+    - group: keyvault-secret-vars
+  jobs:
+    - job: DeployToAzure
+      displayName: 'Deploy API, WebUI, Functions and run DB migrations'
+      steps:
+        - checkout: none
+
+        - task: DownloadPipelineArtifact@2
+          displayName: 'Download build artifact (drop)'
+          inputs:
+            buildType: 'current'
+            artifactName: 'drop'
+            targetPath: '$(Pipeline.Workspace)/drop'
+
+        - task: ExtractFiles@1
+          displayName: 'Extract Database migrator package'
+          inputs:
+            archiveFilePatterns: '$(Pipeline.Workspace)/drop/$(databaseArtifactName).zip'
+            destinationFolder: '$(Pipeline.Workspace)/drop/$(databaseArtifactName)-extracted'
+            cleanDestinationFolder: true
+
+        # JustTaskTracker.Database reads ConnectionStrings__MSQLDb from the
+        # environment (see Program.cs) - no CLI arg needed. DbUp is idempotent
+        # (SchemaVersions journal table), safe to run on every deploy.
+        - script: |
+            dotnet "$(Pipeline.Workspace)/drop/$(databaseArtifactName)-extracted/JustTaskTracker.Database.dll"
+          displayName: 'Run DbUp database migrations'
+          env:
+            ConnectionStrings__MSQLDb: 'Server=tcp:$(sqlServerName).database.windows.net,1433;Initial Catalog=$(sqlDatabaseName);User ID=$(DbAdminLogin);Password=$(DbAdminPassword);Persist Security Info=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;'
+
+        - task: AzureWebApp@1
+          displayName: 'Deploy API to app-jtt-api'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appType: 'webAppLinux'
+            appName: '$(apiAppServiceName)'
+            package: '$(Pipeline.Workspace)/drop/$(apiArtifactName).zip'
+
+        - task: AzureWebApp@1
+          displayName: 'Deploy WebUI to app-jtt-webui'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appType: 'webAppLinux'
+            appName: '$(webUiAppServiceName)'
+            package: '$(Pipeline.Workspace)/drop/$(webUiArtifactName).zip'
+
+        - task: AzureFunctionApp@2
+          displayName: 'Deploy Functions to func-jtt'
+          inputs:
+            azureSubscription: '$(azureSubscription)'
+            appType: 'functionApp'
+            appName: '$(functionAppName)'
+            package: '$(Pipeline.Workspace)/drop/$(functionsArtifactName).zip'
