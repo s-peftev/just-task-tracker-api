@@ -34,6 +34,7 @@
   <ItemGroup>
     <TrimmerRootAssembly Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" />
     <TrimmerRootAssembly Include="Microsoft.Authentication.WebAssembly.Msal" />
+    <TrimmerRootDescriptor Include="Trimmer.xml" />
   </ItemGroup>
 
 </Project>
