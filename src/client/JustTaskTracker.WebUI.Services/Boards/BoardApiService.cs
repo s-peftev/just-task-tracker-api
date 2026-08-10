@@ -1,4 +1,5 @@
 using JustTaskTracker.WebUI.Domain.Boards;
+using JustTaskTracker.WebUI.Domain.Boards.Enums;
 using JustTaskTracker.WebUI.Domain.Boards.Requests;
 using JustTaskTracker.WebUI.Services.Abstractions.Boards;
 using JustTaskTracker.WebUI.Services.Api;
@@ -197,9 +198,10 @@ internal class BoardApiService(IBoardApi api) : IBoardApiService
         Guid boardId,
         Guid columnId,
         string title,
+        BoardTaskType type = BoardTaskType.Story,
         CancellationToken ct = default)
     {
-        var response = await api.CreateTaskAsync(boardId, columnId, new SaveTaskRequest(title), ct);
+        var response = await api.CreateTaskAsync(boardId, columnId, new SaveTaskRequest(title, type), ct);
 
         return ApiResponseGuard.Unwrap(response);
     }

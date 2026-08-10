@@ -26,7 +26,11 @@ public interface IBoardDetailsStore
 
     Task<ColumnDto> CreateColumnAsync(string name, CancellationToken ct = default);
 
-    Task<BoardTaskPreviewDto> CreateTaskAsync(Guid columnId, string title, CancellationToken ct = default);
+    Task<BoardTaskPreviewDto> CreateTaskAsync(
+        Guid columnId,
+        string title,
+        BoardTaskType type = BoardTaskType.Story,
+        CancellationToken ct = default);
 
     void UpdateBoardName(string name);
 

@@ -1,4 +1,5 @@
 using JustTaskTracker.WebUI.Domain.Boards;
+using JustTaskTracker.WebUI.Domain.Boards.Enums;
 using JustTaskTracker.WebUI.Domain.Boards.Requests;
 using JustTaskTracker.WebUI.Domain.Common.Pagination;
 
@@ -67,7 +68,12 @@ public interface IBoardApiService
         int position,
         CancellationToken ct = default);
 
-    Task<BoardTaskPreviewDto> CreateTaskAsync(Guid boardId, Guid columnId, string title, CancellationToken ct = default);
+    Task<BoardTaskPreviewDto> CreateTaskAsync(
+        Guid boardId,
+        Guid columnId,
+        string title,
+        BoardTaskType type = BoardTaskType.Story,
+        CancellationToken ct = default);
 
     Task<PagedList<BoardTaskLookupDto>> GetBoardTasksLookupAsync(
         Guid boardId,

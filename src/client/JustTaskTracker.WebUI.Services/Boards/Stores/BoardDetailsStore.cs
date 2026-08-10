@@ -69,12 +69,16 @@ internal sealed class BoardDetailsStore(
         return column;
     }
 
-    public async Task<BoardTaskPreviewDto> CreateTaskAsync(Guid columnId, string title, CancellationToken ct = default)
+    public async Task<BoardTaskPreviewDto> CreateTaskAsync(
+        Guid columnId,
+        string title,
+        BoardTaskType type = BoardTaskType.Story,
+        CancellationToken ct = default)
     {
         if (BoardId is not { } boardId || Board is null)
             throw new InvalidOperationException("Board details are not loaded.");
 
-        var task = await boardApiService.CreateTaskAsync(boardId, columnId, title, ct);
+        var task = await boardApiService.CreateTaskAsync(boardId, columnId, title, type, ct);
         AddTask(columnId, task);
 
         return task;
@@ -332,6 +336,12 @@ internal sealed class BoardDetailsStore(
                 ApplyTaskCommentsCountChanged((TaskCommentsCountChangedPayload)notification.Payload),
             BoardActionNotificationType.TaskAttachmentsCountChanged =>
                 ApplyTaskAttachmentsCountChanged((TaskAttachmentsCountChangedPayload)notification.Payload),
+            BoardActionNotificationType.TaskCompletionChanged =>
+                ApplyTaskCompletionChanged((TaskCompletionChangedPayload)notification.Payload),
+            BoardActionNotificationType.TaskStoryPointsChanged =>
+                ApplyTaskStoryPointsChanged((TaskStoryPointsChangedPayload)notification.Payload),
+            BoardActionNotificationType.TaskTimeboxChanged =>
+                ApplyTaskTimeboxChanged((TaskTimeboxChangedPayload)notification.Payload),
             _ => LogUnhandledBoardAction(notification.Type),
         };
 
@@ -496,7 +506,11 @@ internal sealed class BoardDetailsStore(
             payload.Position,
             0,
             0,
-            payload.AssigneeId);
+            payload.AssigneeId,
+            payload.Type,
+            false,
+            null,
+            null);
 
         Board = Board with
         {
@@ -641,6 +655,54 @@ internal sealed class BoardDetailsStore(
             return false;
 
         SetTaskAttachmentsCount(payload.BoardTaskId, payload.AttachmentsCount);
+        return true;
+    }
+
+    private bool ApplyTaskCompletionChanged(TaskCompletionChangedPayload payload)
+    {
+        if (Board is null)
+            return false;
+
+        if (!TryGetTask(payload.BoardTaskId, out _))
+            return false;
+
+        UpdateTaskPreviewSilent(payload.BoardTaskId, task => task with
+        {
+            IsDone = payload.IsDone,
+        });
+
+        return true;
+    }
+
+    private bool ApplyTaskStoryPointsChanged(TaskStoryPointsChangedPayload payload)
+    {
+        if (Board is null)
+            return false;
+
+        if (!TryGetTask(payload.BoardTaskId, out _))
+            return false;
+
+        UpdateTaskPreviewSilent(payload.BoardTaskId, task => task with
+        {
+            StoryPoints = payload.StoryPoints,
+        });
+
+        return true;
+    }
+
+    private bool ApplyTaskTimeboxChanged(TaskTimeboxChangedPayload payload)
+    {
+        if (Board is null)
+            return false;
+
+        if (!TryGetTask(payload.BoardTaskId, out _))
+            return false;
+
+        UpdateTaskPreviewSilent(payload.BoardTaskId, task => task with
+        {
+            TimeboxHours = payload.TimeboxHours,
+        });
+
         return true;
     }
 

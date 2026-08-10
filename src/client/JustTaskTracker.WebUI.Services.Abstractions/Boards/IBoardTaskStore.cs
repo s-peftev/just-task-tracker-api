@@ -32,6 +32,12 @@ public interface IBoardTaskStore
 
     void UpdateTaskAssignee(UserDto? assignee);
 
+    void UpdateTaskCompletion(bool isDone, DateTime? completedAtUtc);
+
+    void UpdateTaskStoryPoints(byte? storyPoints);
+
+    void UpdateTaskTimebox(short? timeboxHours);
+
     void AddAttachment(BoardTaskAttachmentDto attachment);
 
     void RemoveAttachment(Guid attachmentId);

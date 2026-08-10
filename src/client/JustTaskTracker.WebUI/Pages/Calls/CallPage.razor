@@ -563,6 +563,19 @@
                     Position = payload.Position,
                 }),
 
+            TaskCompletionChangedPayload payload =>
+                UpdateLinkedTask(payload.BoardTaskId, task => task with
+                {
+                    IsDone = payload.IsDone,
+                    CompletedAtUtc = payload.CompletedAtUtc,
+                }),
+
+            TaskStoryPointsChangedPayload payload =>
+                UpdateLinkedTask(payload.BoardTaskId, task => task with { StoryPoints = payload.StoryPoints }),
+
+            TaskTimeboxChangedPayload payload =>
+                UpdateLinkedTask(payload.BoardTaskId, task => task with { TimeboxHours = payload.TimeboxHours }),
+
             TaskDeletedPayload payload => RemoveLinkedTask(payload.BoardTaskId),
 
             _ => false,

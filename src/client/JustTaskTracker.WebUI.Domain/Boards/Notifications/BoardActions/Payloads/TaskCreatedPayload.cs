@@ -1,3 +1,4 @@
+using JustTaskTracker.WebUI.Domain.Boards.Enums;
 using JustTaskTracker.WebUI.Domain.Boards.Notifications.BoardActions;
 
 namespace JustTaskTracker.WebUI.Domain.Boards.Notifications.BoardActions.Payloads;
@@ -7,4 +8,5 @@ public record TaskCreatedPayload(
     Guid BoardTaskId,
     string Title,
     int Position,
-    Guid? AssigneeId) : BoardActionPayload;
+    Guid? AssigneeId,
+    BoardTaskType Type) : BoardActionPayload;

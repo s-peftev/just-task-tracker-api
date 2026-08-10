@@ -157,6 +157,33 @@ internal sealed class BoardTaskStore(IBoardApiService boardApiService) : IBoardT
         NotifyStateChanged();
     }
 
+    public void UpdateTaskCompletion(bool isDone, DateTime? completedAtUtc)
+    {
+        if (Task is not { } task)
+            return;
+
+        Task = task with { IsDone = isDone, CompletedAtUtc = completedAtUtc };
+        NotifyStateChanged();
+    }
+
+    public void UpdateTaskStoryPoints(byte? storyPoints)
+    {
+        if (Task is not { } task)
+            return;
+
+        Task = task with { StoryPoints = storyPoints };
+        NotifyStateChanged();
+    }
+
+    public void UpdateTaskTimebox(short? timeboxHours)
+    {
+        if (Task is not { } task)
+            return;
+
+        Task = task with { TimeboxHours = timeboxHours };
+        NotifyStateChanged();
+    }
+
     public void AddAttachment(BoardTaskAttachmentDto attachment)
     {
         if (Task is not { } task)

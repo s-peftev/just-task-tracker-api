@@ -39,6 +39,15 @@ internal static class BoardActionSyncKey
             BoardActionNotificationType.TaskAttachmentsCountChanged =>
                 $"task:{((TaskAttachmentsCountChangedPayload)notification.Payload).BoardTaskId}:attachments-count",
 
+            BoardActionNotificationType.TaskCompletionChanged =>
+                $"task:{((TaskCompletionChangedPayload)notification.Payload).BoardTaskId}:completion",
+
+            BoardActionNotificationType.TaskStoryPointsChanged =>
+                $"task:{((TaskStoryPointsChangedPayload)notification.Payload).BoardTaskId}:story-points",
+
+            BoardActionNotificationType.TaskTimeboxChanged =>
+                $"task:{((TaskTimeboxChangedPayload)notification.Payload).BoardTaskId}:timebox",
+
             _ => $"type:{(byte)notification.Type}",
         };
 }
