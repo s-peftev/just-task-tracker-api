@@ -2,13 +2,16 @@
 @using JustTaskTracker.WebUI.Domain.Boards
 @using JustTaskTracker.WebUI.Domain.Boards.Authorization
 @using JustTaskTracker.WebUI.Domain.Boards.Constants
+@using JustTaskTracker.WebUI.Domain.Boards.Enums
 @using JustTaskTracker.WebUI.Infrastructure
+@using JustTaskTracker.WebUI.Services.Abstractions.Auth
 @using JustTaskTracker.WebUI.Services.Abstractions.Boards
 @using JustTaskTracker.WebUI.Services.Configuration
 @using JustTaskTracker.WebUI.Services.Exceptions
 @implements IAsyncDisposable
 @inject IBoardDetailsStore BoardDetailsStore
 @inject IBoardApiService BoardApiService
+@inject IProfileStore ProfileStore
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 @inject IJSRuntime Js
@@ -18,63 +21,227 @@
     @if (_isExpanded)
     {
         <div class="call-meet-board-linked-task__expanded-header">
-            <div class="call-meet-board-linked-task__heading">
-                @if (_isEditingTitle)
+            <span class="call-meet-board-linked-task__type call-meet-board-linked-task__type--@TypeModifierClass">
+                [@TypeLabel]
+            </span>
+
+            <div class="call-meet-board-linked-task__header-controls">
+                @if (CanToggleCompletion)
                 {
-                    <input @ref="_titleInputRef"
-                           class="call-meet-board-linked-task__title-input"
-                           type="text"
-                           maxlength="@BoardTaskFieldLengths.MaxTitleLength"
-                           @bind="_editTitle"
-                           @bind:event="oninput"
-                           @onkeydown="OnTitleKeyDownAsync"
-                           @onblur="OnTitleBlurAsync" />
+                    <button type="button"
+                            class="call-meet-board-linked-task__status @(Task.IsDone ? "call-meet-board-linked-task__status--done" : null) call-meet-board-linked-task__status--toggle"
+                            disabled="@_isSavingCompletion"
+                            aria-label="@(Task.IsDone ? "Mark as not done" : "Mark as done")"
+                            @onclick="OnToggleCompletionAsync">
+                        @if (Task.IsDone)
+                        {
+                            <span class="call-meet-board-linked-task__status-label">
+                                Done@(FormatCompletedAtSuffix(Task.CompletedAtUtc))
+                            </span>
+                        }
+                        <svg class="call-meet-board-linked-task__status-icon"
+                             viewBox="0 0 24 24"
+                             aria-hidden="true"
+                             focusable="false">
+                            @if (Task.IsDone)
+                            {
+                                <rect x="3" y="3" width="18" height="18" rx="4" fill="currentColor" />
+                                <path d="M8 12.5 11 15.5 16.5 9"
+                                      stroke="var(--jtt-surface-content)"
+                                      stroke-width="2.25"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round"
+                                      fill="none" />
+                            }
+                            else
+                            {
+                                <rect x="3.5" y="3.5" width="17" height="17" rx="3.5"
+                                      stroke="currentColor"
+                                      stroke-width="1.75"
+                                      fill="none" />
+                            }
+                        </svg>
+                    </button>
                 }
-                else if (CanManageTask)
+                else if (Task.IsDone)
                 {
-                    <span class="call-meet-board-linked-task__title call-meet-board-linked-task__title--editable"
-                          title="@Task.Title"
-                          @onclick="StartTitleEdit">
-                        @Task.Title
+                    <span class="call-meet-board-linked-task__status call-meet-board-linked-task__status--done"
+                          aria-label="Done">
+                        <span class="call-meet-board-linked-task__status-label">
+                            Done@(FormatCompletedAtSuffix(Task.CompletedAtUtc))
+                        </span>
+                        <svg class="call-meet-board-linked-task__status-icon"
+                             viewBox="0 0 24 24"
+                             aria-hidden="true"
+                             focusable="false">
+                            <rect x="3" y="3" width="18" height="18" rx="4" fill="currentColor" />
+                            <path d="M8 12.5 11 15.5 16.5 9"
+                                  stroke="var(--jtt-surface-content)"
+                                  stroke-width="2.25"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  fill="none" />
+                        </svg>
                     </span>
                 }
-                else
-                {
-                    <span class="call-meet-board-linked-task__title" title="@Task.Title">@Task.Title</span>
-                }
 
-                @if (CanMoveTask)
+                <button type="button"
+                        class="btn-icon btn-icon--sm call-meet-board-linked-task__collapse-btn"
+                        aria-label="Collapse task"
+                        @onclick="Collapse">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M18 15l-6-6-6 6"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              fill="none" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="call-meet-board-linked-task__title-row">
+            @if (_isEditingTitle)
+            {
+                <input @ref="_titleInputRef"
+                       class="call-meet-board-linked-task__title-input"
+                       type="text"
+                       maxlength="@BoardTaskFieldLengths.MaxTitleLength"
+                       @bind="_editTitle"
+                       @bind:event="oninput"
+                       @onkeydown="OnTitleKeyDownAsync"
+                       @onblur="OnTitleBlurAsync" />
+            }
+            else if (CanManageTask)
+            {
+                <span class="call-meet-board-linked-task__title call-meet-board-linked-task__title--editable"
+                      title="@Task.Title"
+                      @onclick="StartTitleEdit">
+                    @Task.Title
+                </span>
+            }
+            else
+            {
+                <span class="call-meet-board-linked-task__title" title="@Task.Title">@Task.Title</span>
+            }
+
+            @if (Task.Type == BoardTaskType.Story)
+            {
+                @if (CanManageEstimate)
                 {
-                    <select class="call-meet-board-linked-task__column-select"
-                            value="@Task.ColumnId"
-                            disabled="@_isMovingColumn"
-                            @onchange="OnColumnSelectedAsync">
-                        @foreach (var column in Columns)
+                    <select class="call-meet-board-linked-task__estimate call-meet-board-linked-task__estimate-select"
+                            aria-label="Story points"
+                            disabled="@_isSavingStoryPoints"
+                            value="@GetStoryPointsSelectValue()"
+                            @onchange="OnStoryPointsChangedAsync">
+                        <option value="">[ 0 SP ]</option>
+                        @foreach (var points in StoryPointsScale.AllowedValues)
                         {
-                            <option value="@column.Id">@column.Name</option>
+                            @if (points != 0)
+                            {
+                                <option value="@points">[ @points SP ]</option>
+                            }
                         }
                     </select>
                 }
                 else
                 {
-                    <span class="call-meet-board-linked-task__column">@Task.ColumnName</span>
+                    <span class="call-meet-board-linked-task__estimate">[ @(Task.StoryPoints ?? 0) SP ]</span>
                 }
-            </div>
-
-            <button type="button"
-                    class="btn-icon btn-icon--sm call-meet-board-linked-task__collapse-btn"
-                    aria-label="Collapse task"
-                    @onclick="Collapse">
-                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-                    <path d="M18 15l-6-6-6 6"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                          stroke-linejoin="round"
-                          fill="none" />
-                </svg>
-            </button>
+            }
+            else if (Task.Type == BoardTaskType.Spike)
+            {
+                @if (_isEditingTimebox)
+                {
+                    <div class="call-meet-board-linked-task__estimate call-meet-board-linked-task__estimate--editing">
+                        <span>[</span>
+                        <input @ref="_timeboxInputRef"
+                               class="call-meet-board-linked-task__estimate-input"
+                               type="text"
+                               inputmode="numeric"
+                               pattern="[0-9]*"
+                               maxlength="3"
+                               aria-label="Timebox hours"
+                               @bind="_editTimeboxHours"
+                               @bind:event="oninput"
+                               @onkeydown="OnTimeboxKeyDownAsync"
+                               @onblur="OnTimeboxBlurAsync" />
+                        <span>h ]</span>
+                    </div>
+                }
+                else if (CanManageEstimate)
+                {
+                    <button type="button"
+                            class="call-meet-board-linked-task__estimate call-meet-board-linked-task__estimate--editable @(HasOpenTimebox ? "call-meet-board-linked-task__estimate--open" : null)"
+                            title="Edit timebox"
+                            aria-label="Edit timebox"
+                            @onclick="StartTimeboxEdit">
+                        @if (HasOpenTimebox)
+                        {
+                            <text>[</text>
+                            <svg class="call-meet-board-linked-task__estimate-infinity"
+                                 viewBox="0 0 24 24"
+                                 aria-hidden="true"
+                                 focusable="false">
+                                <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2.25"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                            </svg>
+                            <text>]</text>
+                        }
+                        else
+                        {
+                            <text>[ @Task.TimeboxHours h ]</text>
+                        }
+                    </button>
+                }
+                else if (HasOpenTimebox)
+                {
+                    <span class="call-meet-board-linked-task__estimate call-meet-board-linked-task__estimate--open"
+                          title="Unlimited timebox"
+                          aria-label="Unlimited timebox">
+                        [
+                        <svg class="call-meet-board-linked-task__estimate-infinity"
+                             viewBox="0 0 24 24"
+                             aria-hidden="true"
+                             focusable="false">
+                            <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2.25"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round" />
+                        </svg>
+                        ]
+                    </span>
+                }
+                else if (EstimateLabel is { } estimateLabel)
+                {
+                    <span class="call-meet-board-linked-task__estimate">@estimateLabel</span>
+                }
+            }
         </div>
+
+        @if (CanMoveTask)
+        {
+            <select class="call-meet-board-linked-task__column-select"
+                    value="@Task.ColumnId"
+                    disabled="@_isMovingColumn"
+                    @onchange="OnColumnSelectedAsync">
+                @foreach (var column in Columns)
+                {
+                    <option value="@column.Id">@column.Name</option>
+                }
+            </select>
+        }
+        else
+        {
+            <span class="call-meet-board-linked-task__column call-meet-board-linked-task__column--expanded">@Task.ColumnName</span>
+        }
 
         <div class="call-meet-board-linked-task__body">
             <div class="call-meet-board-linked-task__user-row">
@@ -281,6 +448,43 @@
     else
     {
         <button type="button" class="call-meet-board-linked-task__preview-btn" @onclick="Expand">
+            <span class="call-meet-board-linked-task__preview-header">
+                <span class="call-meet-board-linked-task__meta">
+                    <span class="call-meet-board-linked-task__type call-meet-board-linked-task__type--@TypeModifierClass">
+                        [@TypeLabel]
+                    </span>
+
+                    @if (HasOpenTimebox)
+                    {
+                        <span class="call-meet-board-linked-task__estimate call-meet-board-linked-task__estimate--open"
+                              title="Unlimited timebox"
+                              aria-label="Unlimited timebox">
+                            [
+                            <svg class="call-meet-board-linked-task__estimate-infinity"
+                                 viewBox="0 0 24 24"
+                                 aria-hidden="true"
+                                 focusable="false">
+                                <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      stroke-width="2.25"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                            </svg>
+                            ]
+                        </span>
+                    }
+                    else if (EstimateLabel is { } estimateLabel)
+                    {
+                        <span class="call-meet-board-linked-task__estimate">@estimateLabel</span>
+                    }
+                </span>
+
+                <span class="call-meet-board-linked-task__preview-status @(Task.IsDone ? "call-meet-board-linked-task__preview-status--done" : null)">
+                    @(Task.IsDone ? "Done" : "In process")
+                </span>
+            </span>
+
             <span class="call-meet-board-linked-task__title" title="@Task.Title">@Task.Title</span>
             <span class="call-meet-board-linked-task__column">@Task.ColumnName</span>
 
@@ -329,6 +533,14 @@
     private Guid? _downloadingAttachmentId;
     private IJSObjectReference? _fileDownloadModule;
 
+    private bool _isSavingCompletion;
+    private bool _isSavingStoryPoints;
+    private bool _isEditingTimebox;
+    private bool _isSavingTimebox;
+    private bool _focusTimeboxInput;
+    private string _editTimeboxHours = string.Empty;
+    private ElementReference _timeboxInputRef;
+
     private bool CanManageTask =>
         !BoardDetailsStore.IsReadOnly && BoardRolePermissions.CanManageTasks(Task.UserRole);
 
@@ -337,12 +549,52 @@
 
     private bool CanDownloadAttachments => BoardRolePermissions.CanDownloadAttachments(Task.UserRole);
 
+    private bool CanManageEstimate =>
+        CanManageTask && Task.Type is BoardTaskType.Story or BoardTaskType.Spike;
+
+    private bool CanToggleCompletion =>
+        !BoardDetailsStore.IsReadOnly
+        && (BoardRolePermissions.CanManageTasks(Task.UserRole)
+            || (ProfileStore.Profile is { } profile && Task.Assignee?.Id == profile.Id));
+
+    private string TypeLabel => Task.Type switch
+    {
+        BoardTaskType.Bug => "Bug",
+        BoardTaskType.Spike => "Spike",
+        _ => "Story",
+    };
+
+    private string TypeModifierClass => Task.Type switch
+    {
+        BoardTaskType.Bug => "bug",
+        BoardTaskType.Spike => "spike",
+        _ => "story",
+    };
+
+    private bool HasOpenTimebox =>
+        Task.Type == BoardTaskType.Spike && Task.TimeboxHours is null;
+
+    private string? EstimateLabel => Task.Type switch
+    {
+        BoardTaskType.Story => $"[ {Task.StoryPoints ?? 0} SP ]",
+        BoardTaskType.Spike when Task.TimeboxHours is { } hours => $"[ {hours}h ]",
+        _ => null,
+    };
+
     private void Expand() => _isExpanded = true;
 
     private void Collapse() => _isExpanded = false;
 
     private static string FormatCreatedAt(DateTime createdAtUtc) =>
         createdAtUtc.ToLocalTime().ToString("g");
+
+    private static string FormatCompletedAtSuffix(DateTime? completedAtUtc) =>
+        completedAtUtc is { } completedAt
+            ? $" · {completedAt.ToLocalTime():g}"
+            : string.Empty;
+
+    private string GetStoryPointsSelectValue() =>
+        Task.StoryPoints is null or 0 ? string.Empty : Task.StoryPoints.Value.ToString();
 
     private static string GetFileFormatLabel(string originalFileName)
     {
@@ -364,6 +616,12 @@
             await _titleInputRef.FocusAsync();
         }
 
+        if (_focusTimeboxInput)
+        {
+            _focusTimeboxInput = false;
+            await _timeboxInputRef.FocusAsync();
+        }
+
         if (_focusDescriptionInput)
         {
             _focusDescriptionInput = false;
@@ -374,6 +632,190 @@
         {
             _resizeDescriptionInput = false;
             await ResizeDescriptionInputAsync();
+        }
+    }
+
+    private async Task OnToggleCompletionAsync()
+    {
+        if (!CanToggleCompletion || _isSavingCompletion)
+            return;
+
+        var nextIsDone = !Task.IsDone;
+        var title = nextIsDone ? "Mark task as done" : "Mark task as not done";
+        var message = nextIsDone
+            ? "Mark this task as done?"
+            : "Mark this task as not done?";
+        var confirmLabel = nextIsDone ? "Mark done" : "Mark not done";
+
+        var dialog = await DialogService.ShowConfirmResourceAsync(
+            title,
+            message,
+            confirmLabel: confirmLabel,
+            submitButtonClass: "btn-dialog-warning btn-dialog-action");
+
+        var result = await dialog.Result;
+
+        if (result is not { Canceled: false, Data: true })
+            return;
+
+        _isSavingCompletion = true;
+
+        try
+        {
+            await BoardApiService.UpdateBoardTaskCompletionAsync(
+                BoardId,
+                Task.ColumnId,
+                Task.Id,
+                nextIsDone);
+
+            BoardDetailsStore.UpdateTaskCompletion(Task.Id, nextIsDone);
+
+            await OnTaskChanged.InvokeAsync(Task with
+            {
+                IsDone = nextIsDone,
+                CompletedAtUtc = nextIsDone ? DateTime.UtcNow : null,
+            });
+
+            Snackbar.Add(
+                nextIsDone ? "Task marked as done." : "Task marked as not done.",
+                Severity.Success);
+        }
+        catch (ApiServiceException ex)
+        {
+            Snackbar.ShowApiError(ex);
+        }
+        finally
+        {
+            _isSavingCompletion = false;
+        }
+    }
+
+    private async Task OnStoryPointsChangedAsync(ChangeEventArgs e)
+    {
+        if (!CanManageEstimate || _isSavingStoryPoints)
+            return;
+
+        byte? nextStoryPoints = null;
+        var raw = e.Value?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            if (!byte.TryParse(raw, out var parsed) || !StoryPointsScale.IsValid(parsed) || parsed == 0)
+            {
+                Snackbar.Add("Select a valid story points value.", Severity.Error);
+                return;
+            }
+
+            nextStoryPoints = parsed;
+        }
+
+        var currentNormalized = Task.StoryPoints is null or 0 ? null : Task.StoryPoints;
+        if (currentNormalized == nextStoryPoints)
+            return;
+
+        _isSavingStoryPoints = true;
+
+        try
+        {
+            await BoardApiService.UpdateBoardTaskStoryPointsAsync(
+                BoardId,
+                Task.ColumnId,
+                Task.Id,
+                nextStoryPoints);
+
+            BoardDetailsStore.UpdateTaskStoryPoints(Task.Id, nextStoryPoints);
+            await OnTaskChanged.InvokeAsync(Task with { StoryPoints = nextStoryPoints });
+        }
+        catch (ApiServiceException ex)
+        {
+            Snackbar.ShowApiError(ex);
+        }
+        finally
+        {
+            _isSavingStoryPoints = false;
+        }
+    }
+
+    private void StartTimeboxEdit()
+    {
+        if (!CanManageEstimate || _isEditingTimebox)
+            return;
+
+        _editTimeboxHours = Task.TimeboxHours?.ToString() ?? string.Empty;
+        _isEditingTimebox = true;
+        _focusTimeboxInput = true;
+    }
+
+    private void CancelTimeboxEdit()
+    {
+        _isEditingTimebox = false;
+        _editTimeboxHours = Task.TimeboxHours?.ToString() ?? string.Empty;
+    }
+
+    private async Task OnTimeboxKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SaveTimeboxAsync();
+        else if (e.Key == "Escape")
+            CancelTimeboxEdit();
+    }
+
+    private async Task OnTimeboxBlurAsync()
+    {
+        if (!_isEditingTimebox)
+            return;
+
+        await SaveTimeboxAsync();
+    }
+
+    private async Task SaveTimeboxAsync()
+    {
+        if (!_isEditingTimebox || _isSavingTimebox)
+            return;
+
+        var trimmed = _editTimeboxHours.Trim();
+        short? nextTimeboxHours = null;
+
+        if (!string.IsNullOrEmpty(trimmed))
+        {
+            if (!short.TryParse(trimmed, out var parsed) || !TimeboxScale.IsValid(parsed))
+            {
+                Snackbar.Add(
+                    $"Timebox must be between {TimeboxScale.MinHours} and {TimeboxScale.MaxHours} hours, or empty for unlimited.",
+                    Severity.Error);
+                return;
+            }
+
+            nextTimeboxHours = parsed;
+        }
+
+        if (Task.TimeboxHours == nextTimeboxHours)
+        {
+            CancelTimeboxEdit();
+            return;
+        }
+
+        _isSavingTimebox = true;
+
+        try
+        {
+            await BoardApiService.UpdateBoardTaskTimeboxAsync(
+                BoardId,
+                Task.ColumnId,
+                Task.Id,
+                nextTimeboxHours);
+
+            BoardDetailsStore.UpdateTaskTimebox(Task.Id, nextTimeboxHours);
+            await OnTaskChanged.InvokeAsync(Task with { TimeboxHours = nextTimeboxHours });
+            _isEditingTimebox = false;
+        }
+        catch (ApiServiceException ex)
+        {
+            Snackbar.ShowApiError(ex);
+        }
+        finally
+        {
+            _isSavingTimebox = false;
         }
     }
 
