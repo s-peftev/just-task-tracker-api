@@ -12,6 +12,9 @@ public class BoardTaskConfiguration : IEntityTypeConfiguration<BoardTask>
         builder.Property(t => t.Title).HasMaxLength(BoardTaskFieldLengths.MaxTitleLength);
         builder.Property(t => t.Description).HasMaxLength(BoardTaskFieldLengths.MaxDescriptionLength);
 
+        builder.Property(t => t.Type)
+            .HasConversion<byte>();
+
         builder.HasOne(t => t.Column)
             .WithMany(c => c.Tasks)
             .HasForeignKey(t => t.ColumnId)
