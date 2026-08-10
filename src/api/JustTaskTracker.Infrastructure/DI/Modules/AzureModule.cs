@@ -39,8 +39,11 @@ internal static class AzureModule
     {
         var options = configuration
             .GetSection(ConfigSections.KeyVault)
-            .Get<KeyVaultOptions>()
-            ?? throw new InvalidOperationException($"{ConfigSections.KeyVault} section is not configured.");
+            .Get<KeyVaultOptions>();
+
+        // Optional locally: omit KeyVault:Uri (e.g. Development) so Aspire/user-secrets supply secrets.
+        if (options is null || string.IsNullOrWhiteSpace(options.Uri))
+            return;
 
         options.Validate();
 

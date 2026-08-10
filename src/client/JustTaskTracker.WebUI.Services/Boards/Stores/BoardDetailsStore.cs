@@ -1,3 +1,4 @@
+using JustTaskTracker.WebUI.Domain.Auth;
 using JustTaskTracker.WebUI.Domain.Boards;
 using JustTaskTracker.WebUI.Domain.Boards.Enums;
 using JustTaskTracker.WebUI.Domain.Boards.Notifications.BoardActions;
@@ -220,12 +221,12 @@ internal sealed class BoardDetailsStore(
         });
     }
 
-    public void UpdateTaskAssigneeId(Guid taskId, Guid? assigneeId)
+    public void UpdateTaskAssignee(Guid taskId, UserDto? assignee)
     {
         if (Board is null)
             return;
 
-        UpdateTaskPreview(taskId, task => task with { AssigneeId = assigneeId });
+        UpdateTaskPreview(taskId, task => task with { Assignee = assignee });
     }
 
     public void SetShowOnlyMyTasks(bool showOnlyMyTasks)
@@ -330,6 +331,8 @@ internal sealed class BoardDetailsStore(
             BoardActionNotificationType.ColumnsReordered => ApplyColumnsReordered((ColumnsReorderedPayload)notification.Payload),
             BoardActionNotificationType.TaskCreated => ApplyTaskCreated((TaskCreatedPayload)notification.Payload),
             BoardActionNotificationType.TaskUpdated => ApplyTaskUpdated((TaskUpdatedPayload)notification.Payload),
+            BoardActionNotificationType.TaskAssigneeChanged =>
+                ApplyTaskAssigneeChanged((TaskAssigneeChangedPayload)notification.Payload),
             BoardActionNotificationType.TaskDeleted => ApplyTaskDeleted((TaskDeletedPayload)notification.Payload),
             BoardActionNotificationType.TasksReordered => ApplyTasksReordered((TasksReorderedPayload)notification.Payload),
             BoardActionNotificationType.TaskCommentsCountChanged =>
@@ -506,7 +509,7 @@ internal sealed class BoardDetailsStore(
             payload.Position,
             0,
             0,
-            payload.AssigneeId,
+            null,
             payload.Type,
             false,
             null,
@@ -559,8 +562,22 @@ internal sealed class BoardDetailsStore(
             task => task with
             {
                 Title = payload.Title,
-                AssigneeId = payload.AssigneeId,
             });
+
+        return true;
+    }
+
+    private bool ApplyTaskAssigneeChanged(TaskAssigneeChangedPayload payload)
+    {
+        if (Board is null)
+            return false;
+
+        if (!TryGetTask(payload.BoardTaskId, out _))
+            return false;
+
+        UpdateTaskPreviewSilent(
+            payload.BoardTaskId,
+            task => task with { Assignee = payload.Assignee });
 
         return true;
     }

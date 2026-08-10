@@ -3,6 +3,8 @@ using JustTaskTracker.Application.Billing.Abstractions;
 using JustTaskTracker.Application.Boards.Mappings;
 using JustTaskTracker.Application.Boards.Repositories;
 using JustTaskTracker.Application.Common.ExternalProviders;
+using JustTaskTracker.Application.Users.ProfilePhotos;
+using JustTaskTracker.Application.Users.ReadModels;
 using JustTaskTracker.Domain.Boards.Authorization;
 using JustTaskTracker.Domain.Boards.DTOs.Boards;
 using JustTaskTracker.Domain.Common.Results;
@@ -17,7 +19,8 @@ public class GetBoardByIdQueryHandler(
     ICurrentUserAccessor currentUserAccessor,
     IBoardRepository boardRepository,
     IBoardExportService boardExportService,
-    IEntitlementService entitlementService)
+    IEntitlementService entitlementService,
+    IProfilePhotoService profilePhotoService)
     : IRequestHandler<GetBoardByIdQuery, Result<BoardDetailsDto>>
 {
     public async Task<Result<BoardDetailsDto>> Handle(GetBoardByIdQuery request, CancellationToken ct)
@@ -40,7 +43,12 @@ public class GetBoardByIdQueryHandler(
             ? await boardExportService.GetBoardExportInfoAsync(board.Id, ct)
             : null;
 
+        Func<UserReadModel, string?> profilePhotoUrlResolver = user =>
+            user.ProfilePhotoVersion is null
+                ? null
+                : profilePhotoService.BuildThumbnailUrl(user.Id, user.ProfilePhotoVersion);
+
         return Result<BoardDetailsDto>.Success(
-            board.ToDto(ownerEntitlements.Limits.ToBoardLimits(), exportInfo));
+            board.ToDto(ownerEntitlements.Limits.ToBoardLimits(), exportInfo, profilePhotoUrlResolver));
     }
 }

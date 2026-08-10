@@ -1,3 +1,4 @@
+using JustTaskTracker.WebUI.Domain.Auth;
 using JustTaskTracker.WebUI.Domain.Boards.Enums;
 
 namespace JustTaskTracker.WebUI.Domain.Boards;
@@ -8,7 +9,7 @@ public record BoardTaskPreviewDto(
     int Position,
     int CommentsCount,
     int AttachmentsCount,
-    Guid? AssigneeId,
+    UserDto? Assignee,
     BoardTaskType Type,
     bool IsDone,
     byte? StoryPoints,

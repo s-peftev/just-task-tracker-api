@@ -3,9 +3,7 @@ using JustTaskTracker.Application.Boards.Repositories;
 using JustTaskTracker.Application.Common.Helpers;
 using JustTaskTracker.Application.Users.ReadModels;
 using JustTaskTracker.Domain.Boards.DTOs.Archiving;
-using JustTaskTracker.Domain.Boards.DTOs.BoardTasks;
 using JustTaskTracker.Domain.Boards.DTOs.Boards;
-using JustTaskTracker.Domain.Boards.DTOs.Columns;
 using JustTaskTracker.Domain.Boards.Entities;
 using JustTaskTracker.Domain.Boards.Enums;
 using JustTaskTracker.Domain.Boards.Enums.SearchFields;
@@ -75,23 +73,31 @@ public class BoardRepository(JustTaskTrackerDbContext context)
                     .First(),
                 b.Columns
                     .OrderBy(c => c.Position)
-                    .Select(c => new ColumnDto(
+                    .Select(c => new ColumnReadModel(
                         c.Id,
                         c.Name,
                         c.Position,
                         c.Tasks
                             .OrderBy(t => t.Position)
-                            .Select(t => new BoardTaskPreviewDto(
+                            .Select(t => new BoardTaskPreviewReadModel(
                                 t.Id,
                                 t.Title,
                                 t.Position,
                                 t.Comments.Count,
                                 t.Attachments.Count,
-                                t.AssigneeId,
+                                t.Assignee == null
+                                    ? null
+                                    : new UserReadModel(
+                                        t.Assignee.Id,
+                                        t.Assignee.Email,
+                                        t.Assignee.DisplayName,
+                                        t.Assignee.ProfilePhotoVersion),
                                 t.Type,
                                 t.IsDone,
                                 t.StoryPoints,
-                                t.TimeboxHours)))),
+                                t.TimeboxHours))
+                            .ToList()))
+                    .ToList(),
                 b.Members
                     .Where(m => m.Role == BoardMemberRole.Owner)
                     .Select(m => (Guid?)m.UserId)

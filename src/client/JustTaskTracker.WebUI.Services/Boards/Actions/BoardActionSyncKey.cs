@@ -27,6 +27,9 @@ internal static class BoardActionSyncKey
             BoardActionNotificationType.TaskUpdated =>
                 $"task:{((TaskUpdatedPayload)notification.Payload).BoardTaskId}",
 
+            BoardActionNotificationType.TaskAssigneeChanged =>
+                $"task:{((TaskAssigneeChangedPayload)notification.Payload).BoardTaskId}:assignee",
+
             BoardActionNotificationType.TaskDeleted =>
                 $"task:{((TaskDeletedPayload)notification.Payload).BoardTaskId}",
 

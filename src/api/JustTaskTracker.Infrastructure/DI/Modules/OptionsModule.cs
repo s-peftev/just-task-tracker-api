@@ -90,11 +90,13 @@ internal static class OptionsModule
 
         var keyVaultOptions = configuration
             .GetSection(ConfigSections.KeyVault)
-            .Get<KeyVaultOptions>()
-            ?? throw new InvalidOperationException($"{ConfigSections.KeyVault} section is not configured.");
+            .Get<KeyVaultOptions>();
 
-        keyVaultOptions.Validate();
-        services.AddSingleton(keyVaultOptions);
+        if (keyVaultOptions is not null && !string.IsNullOrWhiteSpace(keyVaultOptions.Uri))
+        {
+            keyVaultOptions.Validate();
+            services.AddSingleton(keyVaultOptions);
+        }
 
         return services;
     }

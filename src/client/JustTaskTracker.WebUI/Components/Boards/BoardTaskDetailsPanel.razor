@@ -833,7 +833,7 @@
                 member.User.Id);
 
             BoardTaskStore.UpdateTaskAssignee(member.User);
-            BoardDetailsStore.UpdateTaskAssigneeId(TaskId, member.User.Id);
+            BoardDetailsStore.UpdateTaskAssignee(TaskId, member.User);
             AssigneePickerStore.Close();
             Snackbar.Add($"{displayName} assigned to this task.", Severity.Success);
         }
@@ -882,7 +882,7 @@
                 assigneeId: null);
 
             BoardTaskStore.UpdateTaskAssignee(null);
-            BoardDetailsStore.UpdateTaskAssigneeId(TaskId, null);
+            BoardDetailsStore.UpdateTaskAssignee(TaskId, null);
             AssigneePickerStore.Close();
             Snackbar.Add("Assignee removed from this task.", Severity.Success);
         }

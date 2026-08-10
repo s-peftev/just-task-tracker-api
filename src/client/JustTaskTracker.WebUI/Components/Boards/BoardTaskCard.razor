@@ -11,7 +11,7 @@
     @if (HasFooter)
     {
         <div class="board-task-card__footer" aria-hidden="true">
-            @if (Task.AssigneeId is not null)
+            @if (Task.Assignee is not null)
             {
                 <span class="board-task-card__stat @(IsAssignedToCurrentUser ? "board-task-card__stat--assigned-to-me" : null)">
                     <svg class="board-task-card__stat-icon"
@@ -102,7 +102,7 @@
     public EventCallback<BoardTaskPreviewDto> OnTaskClick { get; set; }
 
     private bool HasFooter =>
-        Task.AssigneeId is not null || Task.CommentsCount > 0 || Task.AttachmentsCount > 0;
+        Task.Assignee is not null || Task.CommentsCount > 0 || Task.AttachmentsCount > 0;
 
     private double? _pointerDownX;
     private double? _pointerDownY;

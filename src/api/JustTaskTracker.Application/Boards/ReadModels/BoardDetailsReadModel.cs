@@ -1,4 +1,3 @@
-using JustTaskTracker.Domain.Boards.DTOs.Columns;
 using JustTaskTracker.Domain.Boards.Enums;
 
 namespace JustTaskTracker.Application.Boards.ReadModels;
@@ -9,6 +8,6 @@ public record BoardDetailsReadModel(
     DateTime CreatedAtUtc,
     bool IsArchived,
     BoardMemberRole UserRole,
-    IEnumerable<ColumnDto> Columns,
+    IReadOnlyList<ColumnReadModel> Columns,
     Guid? OwnerUserId,
     DateTime? ArchivedAtUtc);

@@ -1,3 +1,4 @@
+using JustTaskTracker.WebUI.Domain.Auth;
 using JustTaskTracker.WebUI.Domain.Boards;
 using JustTaskTracker.WebUI.Domain.Boards.Enums;
 using JustTaskTracker.WebUI.Domain.Boards.Notifications.BoardActions;
@@ -56,7 +57,7 @@ public interface IBoardDetailsStore
 
     void AdjustTaskAttachmentsCount(Guid taskId, int delta);
 
-    void UpdateTaskAssigneeId(Guid taskId, Guid? assigneeId);
+    void UpdateTaskAssignee(Guid taskId, UserDto? assignee);
 
     void SetShowOnlyMyTasks(bool showOnlyMyTasks);
 

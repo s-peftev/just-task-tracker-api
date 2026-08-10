@@ -27,11 +27,14 @@ builder.ConfigureFunctionsWebApplication();
 
 var keyVaultOptions = builder.Configuration
     .GetSection(KeyVaultOptions.SectionName)
-    .Get<KeyVaultOptions>()
-    ?? throw new InvalidOperationException($"{KeyVaultOptions.SectionName} section is not configured.");
+    .Get<KeyVaultOptions>();
 
-keyVaultOptions.Validate();
-builder.Configuration.AddAzureKeyVault(new Uri(keyVaultOptions.Uri), new DefaultAzureCredential());
+// Optional locally: omit KeyVault:Uri so local.settings / env supply secrets.
+if (keyVaultOptions is not null && !string.IsNullOrWhiteSpace(keyVaultOptions.Uri))
+{
+    keyVaultOptions.Validate();
+    builder.Configuration.AddAzureKeyVault(new Uri(keyVaultOptions.Uri), new DefaultAzureCredential());
+}
 
 if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING")))
 {

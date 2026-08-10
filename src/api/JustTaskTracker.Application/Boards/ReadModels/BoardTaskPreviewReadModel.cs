@@ -1,15 +1,15 @@
-using JustTaskTracker.Domain.Auth.DTOs;
+using JustTaskTracker.Application.Users.ReadModels;
 using JustTaskTracker.Domain.Boards.Enums;
 
-namespace JustTaskTracker.Domain.Boards.DTOs.BoardTasks;
+namespace JustTaskTracker.Application.Boards.ReadModels;
 
-public record BoardTaskPreviewDto(
+public record BoardTaskPreviewReadModel(
     Guid Id,
     string Title,
     int Position,
     int CommentsCount,
     int AttachmentsCount,
-    UserDto? Assignee,
+    UserReadModel? Assignee,
     BoardTaskType Type,
     bool IsDone,
     byte? StoryPoints,
