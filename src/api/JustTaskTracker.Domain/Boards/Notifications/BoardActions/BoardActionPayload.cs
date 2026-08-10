@@ -19,4 +19,7 @@ namespace JustTaskTracker.Domain.Boards.Notifications.BoardActions;
 [JsonDerivedType(typeof(TaskAssigneeChangedPayload), "taskAssigneeChanged")]
 [JsonDerivedType(typeof(TaskAttachmentAddedPayload), "taskAttachmentAdded")]
 [JsonDerivedType(typeof(TaskAttachmentRemovedPayload), "taskAttachmentRemoved")]
+[JsonDerivedType(typeof(TaskCompletionChangedPayload), "taskCompletionChanged")]
+[JsonDerivedType(typeof(TaskStoryPointsChangedPayload), "taskStoryPointsChanged")]
+[JsonDerivedType(typeof(TaskTimeboxChangedPayload), "taskTimeboxChanged")]
 public abstract record BoardActionPayload;

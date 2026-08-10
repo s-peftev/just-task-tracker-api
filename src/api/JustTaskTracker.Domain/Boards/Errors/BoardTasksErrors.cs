@@ -19,4 +19,9 @@ public static class BoardTasksErrors
         nameof(TooManyAttachments),
         ErrorType.Business,
         ["The maximum number of attachments for this task has been reached."]);
+
+    public static readonly Error EstimationNotAllowedForTaskType = new(
+        nameof(EstimationNotAllowedForTaskType),
+        ErrorType.Business,
+        ["Estimation is not allowed for this task type."]);
 }

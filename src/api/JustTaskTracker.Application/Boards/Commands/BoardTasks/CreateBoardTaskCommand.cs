@@ -11,6 +11,7 @@ using JustTaskTracker.Domain.Boards.Authorization;
 using JustTaskTracker.Domain.Boards.Constants;
 using JustTaskTracker.Domain.Boards.DTOs.BoardTasks;
 using JustTaskTracker.Domain.Boards.Entities;
+using JustTaskTracker.Domain.Boards.Enums;
 using JustTaskTracker.Domain.Boards.Notifications.BoardActions;
 using JustTaskTracker.Domain.Boards.Notifications.BoardActions.Payloads;
 using JustTaskTracker.Domain.Common.Results;
@@ -19,7 +20,7 @@ using MediatR;
 
 namespace JustTaskTracker.Application.Boards.Commands.BoardTasks;
 
-public record CreateBoardTaskCommand(Guid BoardId, Guid ColumnId, string Title)
+public record CreateBoardTaskCommand(Guid BoardId, Guid ColumnId, string Title, BoardTaskType Type)
     : IRequest<Result<BoardTaskPreviewDto>>, IRequireActiveBoard, IRequirePlanLimit
 {
     public PlanLimitKind Limit => PlanLimitKind.TasksPerBoard;
@@ -58,7 +59,8 @@ public class CreateBoardTaskCommandHandler(
             ColumnId = request.ColumnId,
             Title = title,
             Position = position,
-            ReporterId = currentUserInfo.Id
+            ReporterId = currentUserInfo.Id,
+            Type = request.Type
         };
 
         boardTaskRepository.Add(task);
@@ -101,5 +103,8 @@ public class CreateBoardTaskCommandValidator : AbstractValidator<CreateBoardTask
             .Must(title => !string.IsNullOrWhiteSpace(title))
             .WithMessage("'Title' must not be empty.")
             .MaximumLength(BoardTaskFieldLengths.MaxTitleLength);
+
+        RuleFor(x => x.Type)
+            .IsInEnum();
     }
 }

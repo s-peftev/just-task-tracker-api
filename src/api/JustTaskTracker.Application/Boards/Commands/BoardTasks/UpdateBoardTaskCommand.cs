@@ -15,6 +15,7 @@ using JustTaskTracker.Domain.Boards.Constants;
 using JustTaskTracker.Domain.Boards.Errors;
 using JustTaskTracker.Domain.Boards.Notifications.BoardActions;
 using JustTaskTracker.Domain.Boards.Notifications.BoardActions.Payloads;
+using JustTaskTracker.Domain.Boards.Rules;
 using JustTaskTracker.Domain.Common.Results;
 using JustTaskTracker.Domain.Common.Results.Errors;
 using MediatR;
@@ -26,7 +27,10 @@ public record UpdateBoardTaskCommand(
     Guid BoardTaskId,
     PatchField<string> Title = default,
     PatchField<string?> Description = default,
-    PatchField<Guid?> AssigneeId = default)
+    PatchField<Guid?> AssigneeId = default,
+    PatchField<bool> IsDone = default,
+    PatchField<byte?> StoryPoints = default,
+    PatchField<short?> TimeboxHours = default)
     : IRequest<Result>, IRequireActiveBoard;
 
 public class UpdateBoardTaskCommandHandler(
@@ -49,15 +53,32 @@ public class UpdateBoardTaskCommandHandler(
 
         var (boardTask, userRole) = await boardTaskRepository.GetBoardTaskWithUserRoleAsync(request.BoardTaskId, currentUserAccessor.AzureAdObjectId, ct);
 
-        if (userRole is not { } authorizedRole || !BoardRolePermissions.CanManageTasks(authorizedRole))
+        if (userRole is not { } authorizedRole)
             return Result.Failure(GeneralErrors.Forbidden);
 
         if (boardTask is null)
             return Result.Failure(GeneralErrors.NotFound);
 
+        var canManageTasks = BoardRolePermissions.CanManageTasks(authorizedRole);
+        var isAssignee = boardTask.AssigneeId == currentUserInfo.Id;
+        var hasManageFields = request.Title.IsSpecified
+            || request.Description.IsSpecified
+            || request.AssigneeId.IsSpecified
+            || request.StoryPoints.IsSpecified
+            || request.TimeboxHours.IsSpecified;
+
+        if (hasManageFields && !canManageTasks)
+            return Result.Failure(GeneralErrors.Forbidden);
+
+        if (request.IsDone.IsSpecified && !canManageTasks && !isAssignee)
+            return Result.Failure(GeneralErrors.Forbidden);
+
         var hasChanges = false;
         var descriptionChanged = false;
         var assigneeChanged = false;
+        var completionChanged = false;
+        var storyPointsChanged = false;
+        var timeboxChanged = false;
 
         if (request.Title.IsSpecified)
         {
@@ -102,6 +123,39 @@ public class UpdateBoardTaskCommandHandler(
             }
         }
 
+        if (request.IsDone.IsSpecified)
+        {
+            var isDone = request.IsDone.Value;
+
+            if (boardTask.IsDone != isDone)
+            {
+                boardTask.IsDone = isDone;
+                boardTask.CompletedAtUtc = isDone ? dateTimeProvider.UtcNow : null;
+                hasChanges = true;
+                completionChanged = true;
+            }
+        }
+
+        if (request.StoryPoints.IsSpecified && boardTask.StoryPoints != request.StoryPoints.Value)
+        {
+            boardTask.StoryPoints = request.StoryPoints.Value;
+            hasChanges = true;
+            storyPointsChanged = true;
+        }
+
+        if (request.TimeboxHours.IsSpecified && boardTask.TimeboxHours != request.TimeboxHours.Value)
+        {
+            boardTask.TimeboxHours = request.TimeboxHours.Value;
+            hasChanges = true;
+            timeboxChanged = true;
+        }
+
+        if (request.StoryPoints.IsSpecified || request.TimeboxHours.IsSpecified)
+        {
+            if (!BoardTaskEstimationRules.Validate(boardTask.Type, boardTask.StoryPoints, boardTask.TimeboxHours))
+                return Result.Failure(BoardTasksErrors.EstimationNotAllowedForTaskType);
+        }
+
         if (!hasChanges)
             return Result.Success();
 
@@ -138,6 +192,36 @@ public class UpdateBoardTaskCommandHandler(
                 new TaskAssigneeChangedPayload(boardTask.Id, await ResolveAssigneeDtoAsync(boardTask.AssigneeId, ct))), ct);
         }
 
+        if (completionChanged)
+        {
+            await boardActionNotifier.NotifyAsync(new BoardActionNotification(
+                request.BoardId,
+                BoardActionNotificationType.TaskCompletionChanged,
+                currentUserInfo.Id,
+                dateTimeProvider.UtcNow,
+                new TaskCompletionChangedPayload(boardTask.Id, boardTask.IsDone, boardTask.CompletedAtUtc)), ct);
+        }
+
+        if (storyPointsChanged)
+        {
+            await boardActionNotifier.NotifyAsync(new BoardActionNotification(
+                request.BoardId,
+                BoardActionNotificationType.TaskStoryPointsChanged,
+                currentUserInfo.Id,
+                dateTimeProvider.UtcNow,
+                new TaskStoryPointsChangedPayload(boardTask.Id, boardTask.StoryPoints)), ct);
+        }
+
+        if (timeboxChanged)
+        {
+            await boardActionNotifier.NotifyAsync(new BoardActionNotification(
+                request.BoardId,
+                BoardActionNotificationType.TaskTimeboxChanged,
+                currentUserInfo.Id,
+                dateTimeProvider.UtcNow,
+                new TaskTimeboxChangedPayload(boardTask.Id, boardTask.TimeboxHours)), ct);
+        }
+
         return Result.Success();
     }
 
@@ -166,7 +250,10 @@ public class UpdateBoardTaskCommandValidator : AbstractValidator<UpdateBoardTask
         RuleFor(x => x)
             .Must(command => command.Title.IsSpecified
                 || command.Description.IsSpecified
-                || command.AssigneeId.IsSpecified)
+                || command.AssigneeId.IsSpecified
+                || command.IsDone.IsSpecified
+                || command.StoryPoints.IsSpecified
+                || command.TimeboxHours.IsSpecified)
             .WithMessage("At least one field must be provided for update.");
 
         When(x => x.Title.IsSpecified, () =>
@@ -194,6 +281,20 @@ public class UpdateBoardTaskCommandValidator : AbstractValidator<UpdateBoardTask
         {
             RuleFor(x => x.AssigneeId.Value)
                 .NotEmpty();
+        });
+
+        When(x => x.StoryPoints is { IsSpecified: true, Value: not null }, () =>
+        {
+            RuleFor(x => x.StoryPoints.Value)
+                .Must(storyPoints => StoryPointsScale.IsValid(storyPoints!.Value))
+                .WithMessage("'StoryPoints' must be a valid Fibonacci scale value.");
+        });
+
+        When(x => x.TimeboxHours is { IsSpecified: true, Value: not null }, () =>
+        {
+            RuleFor(x => x.TimeboxHours.Value)
+                .Must(timeboxHours => TimeboxScale.IsValid(timeboxHours!.Value))
+                .WithMessage($"'TimeboxHours' must be between {TimeboxScale.MinHours} and {TimeboxScale.MaxHours}.");
         });
     }
 }

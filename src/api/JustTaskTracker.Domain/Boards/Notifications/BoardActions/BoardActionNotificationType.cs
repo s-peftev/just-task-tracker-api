@@ -21,4 +21,7 @@ public enum BoardActionNotificationType : byte
     TaskAssigneeChanged = 13,
     TaskAttachmentAdded = 14,
     TaskAttachmentRemoved = 15,
+    TaskCompletionChanged = 16,
+    TaskStoryPointsChanged = 17,
+    TaskTimeboxChanged = 18,
 }
