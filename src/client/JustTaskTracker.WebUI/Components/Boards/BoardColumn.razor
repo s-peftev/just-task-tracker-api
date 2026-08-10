@@ -13,7 +13,7 @@
 @implements IDisposable
 @inject IJSRuntime Js
 
-<article class="board-column" data-column-id="@Column.Id">
+<article class="board-column @(_isTypePickerOpen ? "board-column--type-picker-open" : null)" data-column-id="@Column.Id">
     <header class="board-column__header @(CanReorderColumn ? "board-column__header--draggable" : null)">
         <div class="board-column__title-area">
             @if (_isEditingName)
@@ -109,8 +109,10 @@
                 @if (IsTaskVisible(context))
                 {
                     <BoardTaskCard Task="context"
+                                   ColumnId="Column.Id"
                                    CanDrag="CanMoveTasks"
                                    IsAssignedToCurrentUser="@IsAssignedToCurrentUser(context)"
+                                   CanToggleCompletion="@CanToggleTaskCompletion(context)"
                                    OnTaskClick="OnTaskClickAsync" />
                 }
             </div>
@@ -122,15 +124,20 @@
         {
             @if (_isAddingTask)
             {
-                <textarea @ref="_taskTitleInputRef"
-                          class="board-column__add-task-input"
-                          rows="2"
-                          maxlength="50"
-                          placeholder="Enter a task title"
-                          @bind="_newTaskTitle"
-                          @bind:event="oninput"
-                          @onkeydown="OnTaskTitleKeyDownAsync"
-                          @onblur="OnTaskTitleBlurAsync"></textarea>
+                <div class="board-column__add-task-form">
+                    <span class="board-column__add-task-type board-column__add-task-type--@_newTaskTypeModifier">
+                        [@_newTaskTypeLabel]
+                    </span>
+                    <textarea @ref="_taskTitleInputRef"
+                              class="board-column__add-task-input"
+                              rows="2"
+                              maxlength="50"
+                              placeholder="Enter a task title"
+                              @bind="_newTaskTitle"
+                              @bind:event="oninput"
+                              @onkeydown="OnTaskTitleKeyDownAsync"
+                              @onblur="OnTaskTitleBlurAsync"></textarea>
+                </div>
             }
             else if (IsTaskLimitReached)
             {
@@ -152,11 +159,46 @@
             }
             else
             {
-                <button type="button"
-                        class="board-column__add-task"
-                        @onclick="StartAddTask">
-                    + Add task
-                </button>
+                <div class="board-column__add-task-wrap">
+                    @if (_isTypePickerOpen)
+                    {
+                        <button type="button"
+                                class="board-column__type-picker-backdrop"
+                                aria-label="Close task type menu"
+                                @onclick="CloseTypePicker"></button>
+
+                        <div class="board-column__type-picker"
+                             role="menu"
+                             aria-label="Select task type"
+                             style="@_typePickerStyle">
+                            @foreach (var option in TaskTypeOptions)
+                            {
+                                <HoverTooltip Placement="HoverTooltipPlacement.Left">
+                                    <Trigger>
+                                        <button type="button"
+                                                class="board-column__type-picker-option board-column__type-picker-option--@option.Modifier"
+                                                role="menuitem"
+                                                @onclick="() => SelectTaskType(option.Type)">
+                                            [@option.Label]
+                                        </button>
+                                    </Trigger>
+                                    <ChildContent>
+                                        <p class="hover-tooltip__panel-text">@option.Tooltip</p>
+                                    </ChildContent>
+                                </HoverTooltip>
+                            }
+                        </div>
+                    }
+
+                    <button type="button"
+                            @ref="_addTaskButtonRef"
+                            class="board-column__add-task"
+                            aria-expanded="@_isTypePickerOpen"
+                            aria-haspopup="menu"
+                            @onclick="ToggleTypePickerAsync">
+                        + Add task
+                    </button>
+                </div>
             }
         }
     </footer>
@@ -200,15 +242,19 @@
     private double? _titlePointerDownY;
 
     private bool _isAddingTask;
+    private bool _isTypePickerOpen;
     private bool _isSavingTask;
     private bool _focusTaskTitleInput;
     private string _newTaskTitle = string.Empty;
+    private BoardTaskType _newTaskType = BoardTaskType.Story;
     private ElementReference _taskTitleInputRef;
+    private ElementReference _addTaskButtonRef;
     private ElementReference _tasksListRef;
     private bool _scrollTasksToBottom;
     private bool _isReorderingTasks;
     private int _expectedTaskCountAfterCreate;
     private IJSObjectReference? _tasksScrollModule;
+    private string? _typePickerStyle;
     private readonly List<BoardTaskPreviewDto> _sortableTasks = [];
 
     private bool CanRenameColumn =>
@@ -434,11 +480,70 @@
         }
     }
 
-    private void StartAddTask()
+    private static readonly (BoardTaskType Type, string Label, string Modifier, string Tooltip)[] TaskTypeOptions =
+    [
+        (BoardTaskType.Story, "Story", "story", "Planned work that can optionally be estimated with story points."),
+        (BoardTaskType.Bug, "Bug", "bug", "A defect to fix; bugs are not estimated."),
+        (BoardTaskType.Spike, "Spike", "spike", "Research or investigation work with an optional timebox in hours."),
+    ];
+
+    private string _newTaskTypeLabel => _newTaskType switch
+    {
+        BoardTaskType.Bug => "Bug",
+        BoardTaskType.Spike => "Spike",
+        _ => "Story",
+    };
+
+    private string _newTaskTypeModifier => _newTaskType switch
+    {
+        BoardTaskType.Bug => "bug",
+        BoardTaskType.Spike => "spike",
+        _ => "story",
+    };
+
+    private async Task ToggleTypePickerAsync()
     {
         if (!CanManageTasks || _isAddingTask || IsTaskLimitReached)
             return;
 
+        if (_isTypePickerOpen)
+        {
+            CloseTypePicker();
+            return;
+        }
+
+        await OpenTypePickerAsync();
+    }
+
+    private async Task OpenTypePickerAsync()
+    {
+        _tasksScrollModule ??= await Js.InvokeAsync<IJSObjectReference>("import", "./js/boardColumnTasks.js");
+        var rect = await _tasksScrollModule.InvokeAsync<DomRect?>("getBoundingClientRect", _addTaskButtonRef);
+        if (rect is null)
+            return;
+
+        const double gapPx = 8;
+        var offsetFromViewportBottom = rect.ViewportHeight - rect.Bottom;
+        _typePickerStyle =
+            $"top:auto;" +
+            $"bottom:{offsetFromViewportBottom.ToString(System.Globalization.CultureInfo.InvariantCulture)}px;" +
+            $"left:{(rect.Right + gapPx).ToString(System.Globalization.CultureInfo.InvariantCulture)}px;";
+        _isTypePickerOpen = true;
+    }
+
+    private void CloseTypePicker()
+    {
+        _isTypePickerOpen = false;
+        _typePickerStyle = null;
+    }
+
+    private void SelectTaskType(BoardTaskType type)
+    {
+        if (!CanManageTasks || IsTaskLimitReached)
+            return;
+
+        _newTaskType = type;
+        CloseTypePicker();
         _newTaskTitle = string.Empty;
         _isAddingTask = true;
         _focusTaskTitleInput = true;
@@ -447,7 +552,20 @@
     private void CancelAddTask()
     {
         _isAddingTask = false;
+        CloseTypePicker();
         _newTaskTitle = string.Empty;
+        _newTaskType = BoardTaskType.Story;
+    }
+
+    private sealed class DomRect
+    {
+        public double Top { get; set; }
+        public double Left { get; set; }
+        public double Right { get; set; }
+        public double Bottom { get; set; }
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public double ViewportHeight { get; set; }
     }
 
     private async Task OnTaskTitleKeyDownAsync(KeyboardEventArgs e)
@@ -494,7 +612,7 @@
         try
         {
             _expectedTaskCountAfterCreate = Column.BoardTasks.Count + 1;
-            await BoardDetailsStore.CreateTaskAsync(Column.Id, trimmedTitle);
+            await BoardDetailsStore.CreateTaskAsync(Column.Id, trimmedTitle, _newTaskType);
             SyncSortableTasksFromColumn();
             CancelAddTask();
             _scrollTasksToBottom = true;
@@ -592,6 +710,10 @@
 
     private bool IsAssignedToCurrentUser(BoardTaskPreviewDto task) =>
         ProfileStore.Profile is { } profile && task.IsAssignedToCurrentUser(profile.Id);
+
+    private bool CanToggleTaskCompletion(BoardTaskPreviewDto task) =>
+        !BoardDetailsStore.IsReadOnly
+        && (CanManageTasks || IsAssignedToCurrentUser(task));
 
     private async Task OnTaskSortableChangedAsync(SortableEventArgs<BoardTaskPreviewDto> args)
     {

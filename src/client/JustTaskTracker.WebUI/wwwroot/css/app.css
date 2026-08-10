@@ -1146,6 +1146,11 @@ h1:focus {
     min-height: 0;
 }
 
+.board-page__body .board-page__columns-sortable > .sortable-draggable:has(.board-column--type-picker-open) {
+    overflow: visible;
+    z-index: 30;
+}
+
 .board-page__body .board-page__column-ghost {
     visibility: visible;
     opacity: 0.35;

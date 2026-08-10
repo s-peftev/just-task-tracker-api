@@ -3,6 +3,7 @@
 @using JustTaskTracker.WebUI.Domain.Boards
 @using JustTaskTracker.WebUI.Domain.Boards.Authorization
 @using JustTaskTracker.WebUI.Domain.Boards.Constants
+@using JustTaskTracker.WebUI.Domain.Boards.Enums
 @using JustTaskTracker.WebUI.Infrastructure
 @using JustTaskTracker.WebUI.Services.Abstractions.Boards
 @using JustTaskTracker.WebUI.Services.Configuration
@@ -33,25 +34,10 @@
         <div class="board-task-details-panel__blocks">
             <section class="board-task-details-panel__block board-task-details-panel__block--title">
                 <div class="board-task-details-panel__title-row">
-                    <svg class="board-task-details-panel__section-icon board-task-details-panel__section-icon--title"
-                         viewBox="0 0 24 24"
-                         aria-hidden="true"
-                         focusable="false">
-                        <path d="M4 7V5h16v2"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              fill="none" />
-                        <path d="M12 5v15"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              stroke-linecap="round" />
-                        <path d="M8 20h8"
-                              stroke="currentColor"
-                              stroke-width="2"
-                              stroke-linecap="round" />
-                    </svg>
+                    <span class="board-task-details-panel__type board-task-details-panel__type--@GetTypeModifierClass(task.Type)">
+                        [@GetTypeLabel(task.Type)]
+                    </span>
+
                     <div class="board-task-details-panel__title-area">
                         @if (_isEditingTitle)
                         {
@@ -80,6 +66,105 @@
                             <h3 class="board-task-details-panel__title" title="@task.Title">@task.Title</h3>
                         }
                     </div>
+
+                    @if (task.Type == BoardTaskType.Story)
+                    {
+                        @if (CanManageEstimate(task))
+                        {
+                            <select class="board-task-details-panel__estimate board-task-details-panel__estimate-select"
+                                    aria-label="Story points"
+                                    disabled="@_isSavingStoryPoints"
+                                    value="@GetStoryPointsSelectValue(task)"
+                                    @onchange="OnStoryPointsChangedAsync">
+                                <option value="">[ 0 SP ]</option>
+                                @foreach (var points in StoryPointsScale.AllowedValues)
+                                {
+                                    @if (points != 0)
+                                    {
+                                        <option value="@points">[ @points SP ]</option>
+                                    }
+                                }
+                            </select>
+                        }
+                        else
+                        {
+                            <span class="board-task-details-panel__estimate">[ @(task.StoryPoints ?? 0) SP ]</span>
+                        }
+                    }
+                    else if (task.Type == BoardTaskType.Spike)
+                    {
+                        @if (_isEditingTimebox)
+                        {
+                            <div class="board-task-details-panel__estimate board-task-details-panel__estimate--editing">
+                                <span>[</span>
+                                <input @ref="_timeboxInputRef"
+                                       class="board-task-details-panel__estimate-input"
+                                       type="text"
+                                       inputmode="numeric"
+                                       pattern="[0-9]*"
+                                       maxlength="3"
+                                       aria-label="Timebox hours"
+                                       @bind="_editTimeboxHours"
+                                       @bind:event="oninput"
+                                       @onkeydown="OnTimeboxKeyDownAsync"
+                                       @onblur="OnTimeboxBlurAsync" />
+                                <span>h ]</span>
+                            </div>
+                        }
+                        else if (CanManageEstimate(task))
+                        {
+                            <button type="button"
+                                    class="board-task-details-panel__estimate board-task-details-panel__estimate--editable @(HasOpenTimebox(task) ? "board-task-details-panel__estimate--open" : null)"
+                                    title="Edit timebox"
+                                    aria-label="Edit timebox"
+                                    @onclick="StartTimeboxEdit">
+                                @if (HasOpenTimebox(task))
+                                {
+                                    <text>[</text>
+                                    <svg class="board-task-details-panel__estimate-infinity"
+                                         viewBox="0 0 24 24"
+                                         aria-hidden="true"
+                                         focusable="false">
+                                        <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                                              fill="none"
+                                              stroke="currentColor"
+                                              stroke-width="2.25"
+                                              stroke-linecap="round"
+                                              stroke-linejoin="round" />
+                                    </svg>
+                                    <text>]</text>
+                                }
+                                else
+                                {
+                                    <text>[ @task.TimeboxHours h ]</text>
+                                }
+                            </button>
+                        }
+                        else if (HasOpenTimebox(task))
+                        {
+                            <span class="board-task-details-panel__estimate board-task-details-panel__estimate--open"
+                                  title="Unlimited timebox"
+                                  aria-label="Unlimited timebox">
+                                [
+                                <svg class="board-task-details-panel__estimate-infinity"
+                                     viewBox="0 0 24 24"
+                                     aria-hidden="true"
+                                     focusable="false">
+                                    <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          stroke-width="2.25"
+                                          stroke-linecap="round"
+                                          stroke-linejoin="round" />
+                                </svg>
+                                ]
+                            </span>
+                        }
+                        else if (GetEstimateLabel(task) is { } estimateLabel)
+                        {
+                            <span class="board-task-details-panel__estimate">@estimateLabel</span>
+                        }
+                    }
                 </div>
             </section>
 
@@ -427,6 +512,13 @@
     private string _editTitle = string.Empty;
     private ElementReference _titleInputRef;
 
+    private bool _isSavingStoryPoints;
+    private bool _isEditingTimebox;
+    private bool _isSavingTimebox;
+    private bool _focusTimeboxInput;
+    private string _editTimeboxHours = string.Empty;
+    private ElementReference _timeboxInputRef;
+
     private bool _isEditingDescription;
     private bool _isSavingDescription;
     private bool _focusDescriptionInput;
@@ -459,6 +551,12 @@
         {
             _focusTitleInput = false;
             await _titleInputRef.FocusAsync();
+        }
+
+        if (_focusTimeboxInput)
+        {
+            _focusTimeboxInput = false;
+            await _timeboxInputRef.FocusAsync();
         }
 
         if (_focusDescriptionInput)
@@ -561,8 +659,168 @@
     private bool CanManageTasks(BoardTaskDetailsDto task) =>
         !BoardDetailsStore.IsReadOnly && BoardRolePermissions.CanManageTasks(task.UserRole);
 
+    private bool CanManageEstimate(BoardTaskDetailsDto task) =>
+        CanManageTasks(task)
+        && task.Type is BoardTaskType.Story or BoardTaskType.Spike;
+
+    private static string GetTypeLabel(BoardTaskType type) => type switch
+    {
+        BoardTaskType.Bug => "Bug",
+        BoardTaskType.Spike => "Spike",
+        _ => "Story",
+    };
+
+    private static string GetTypeModifierClass(BoardTaskType type) => type switch
+    {
+        BoardTaskType.Bug => "bug",
+        BoardTaskType.Spike => "spike",
+        _ => "story",
+    };
+
+    private static bool HasOpenTimebox(BoardTaskDetailsDto task) =>
+        task.Type == BoardTaskType.Spike && task.TimeboxHours is null;
+
+    private static string? GetEstimateLabel(BoardTaskDetailsDto task) => task.Type switch
+    {
+        BoardTaskType.Story => $"[ {task.StoryPoints ?? 0} SP ]",
+        BoardTaskType.Spike when task.TimeboxHours is { } hours => $"[ {hours}h ]",
+        _ => null,
+    };
+
+    private static string GetStoryPointsSelectValue(BoardTaskDetailsDto task) =>
+        task.StoryPoints is null or 0 ? string.Empty : task.StoryPoints.Value.ToString();
+
     private static bool CanDownloadAttachments(BoardTaskDetailsDto task) =>
         BoardRolePermissions.CanDownloadAttachments(task.UserRole);
+
+    private async Task OnStoryPointsChangedAsync(ChangeEventArgs e)
+    {
+        if (BoardTaskStore.Task is not { } task || !CanManageEstimate(task) || _isSavingStoryPoints)
+            return;
+
+        byte? nextStoryPoints = null;
+        var raw = e.Value?.ToString();
+
+        if (!string.IsNullOrWhiteSpace(raw))
+        {
+            if (!byte.TryParse(raw, out var parsed) || !StoryPointsScale.IsValid(parsed) || parsed == 0)
+            {
+                Snackbar.Add("Select a valid story points value.", Severity.Error);
+                return;
+            }
+
+            nextStoryPoints = parsed;
+        }
+
+        var currentNormalized = task.StoryPoints is null or 0 ? null : task.StoryPoints;
+        if (currentNormalized == nextStoryPoints)
+            return;
+
+        _isSavingStoryPoints = true;
+
+        try
+        {
+            await BoardApiService.UpdateBoardTaskStoryPointsAsync(
+                BoardId,
+                ColumnId,
+                TaskId,
+                nextStoryPoints);
+
+            BoardTaskStore.UpdateTaskStoryPoints(nextStoryPoints);
+            BoardDetailsStore.UpdateTaskStoryPoints(TaskId, nextStoryPoints);
+        }
+        catch (ApiServiceException ex)
+        {
+            Snackbar.ShowApiError(ex);
+        }
+        finally
+        {
+            _isSavingStoryPoints = false;
+        }
+    }
+
+    private void StartTimeboxEdit()
+    {
+        if (BoardTaskStore.Task is not { } task || !CanManageEstimate(task) || _isEditingTimebox)
+            return;
+
+        _editTimeboxHours = task.TimeboxHours?.ToString() ?? string.Empty;
+        _isEditingTimebox = true;
+        _focusTimeboxInput = true;
+    }
+
+    private void CancelTimeboxEdit()
+    {
+        _isEditingTimebox = false;
+        _editTimeboxHours = BoardTaskStore.Task?.TimeboxHours?.ToString() ?? string.Empty;
+    }
+
+    private async Task OnTimeboxKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+            await SaveTimeboxAsync();
+        else if (e.Key == "Escape")
+            CancelTimeboxEdit();
+    }
+
+    private async Task OnTimeboxBlurAsync()
+    {
+        if (!_isEditingTimebox)
+            return;
+
+        await SaveTimeboxAsync();
+    }
+
+    private async Task SaveTimeboxAsync()
+    {
+        if (!_isEditingTimebox || _isSavingTimebox || BoardTaskStore.Task is not { } task)
+            return;
+
+        var trimmed = _editTimeboxHours.Trim();
+        short? nextTimeboxHours = null;
+
+        if (!string.IsNullOrEmpty(trimmed))
+        {
+            if (!short.TryParse(trimmed, out var parsed) || !TimeboxScale.IsValid(parsed))
+            {
+                Snackbar.Add(
+                    $"Timebox must be between {TimeboxScale.MinHours} and {TimeboxScale.MaxHours} hours, or empty for unlimited.",
+                    Severity.Error);
+                return;
+            }
+
+            nextTimeboxHours = parsed;
+        }
+
+        if (task.TimeboxHours == nextTimeboxHours)
+        {
+            CancelTimeboxEdit();
+            return;
+        }
+
+        _isSavingTimebox = true;
+
+        try
+        {
+            await BoardApiService.UpdateBoardTaskTimeboxAsync(
+                BoardId,
+                ColumnId,
+                TaskId,
+                nextTimeboxHours);
+
+            BoardTaskStore.UpdateTaskTimebox(nextTimeboxHours);
+            BoardDetailsStore.UpdateTaskTimebox(TaskId, nextTimeboxHours);
+            _isEditingTimebox = false;
+        }
+        catch (ApiServiceException ex)
+        {
+            Snackbar.ShowApiError(ex);
+        }
+        finally
+        {
+            _isSavingTimebox = false;
+        }
+    }
 
     private void StartTitleEdit()
     {

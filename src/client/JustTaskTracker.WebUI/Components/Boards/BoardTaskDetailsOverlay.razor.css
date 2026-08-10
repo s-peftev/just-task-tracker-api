@@ -83,22 +83,60 @@
     gap: 0.75rem;
 }
 
-.board-task-overlay__delete-btn {
-    padding: 0.375rem 0.75rem;
-    border: 1px solid var(--jtt-text-danger);
-    border-radius: var(--jtt-radius-sm);
+.board-task-overlay__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    margin: 0;
+    padding: 0.25rem 0.35rem;
+    border: none;
     background: transparent;
-    color: var(--jtt-text-danger);
-    font-family: inherit;
-    font-size: 0.75rem;
-    font-weight: var(--jtt-font-weight-body);
-    line-height: 1.2;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    color: var(--jtt-text-muted);
+    font: inherit;
 }
 
-.board-task-overlay__delete-btn:hover {
+.board-task-overlay__status--done {
+    color: var(--jtt-accent);
+}
+
+.board-task-overlay__status--toggle {
+    cursor: pointer;
+    border-radius: var(--jtt-radius-sm);
+}
+
+.board-task-overlay__status--toggle:hover:not(:disabled) {
+    color: var(--jtt-text-primary);
+}
+
+.board-task-overlay__status--toggle.board-task-overlay__status--done:hover:not(:disabled) {
+    color: var(--jtt-accent);
+}
+
+.board-task-overlay__status:disabled {
+    cursor: default;
+    opacity: 0.7;
+}
+
+.board-task-overlay__status-icon {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.board-task-overlay__status-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.board-task-overlay__delete {
+    color: var(--jtt-text-muted);
+}
+
+.board-task-overlay__delete:hover:not(:disabled) {
+    color: var(--jtt-text-danger);
     background-color: var(--jtt-overlay-danger-10);
 }
 

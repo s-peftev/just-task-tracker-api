@@ -134,6 +134,30 @@ internal interface IBoardApi
         [Body] UpdateBoardTaskAssigneeRequest request,
         CancellationToken ct = default);
 
+    [Patch("/api/boards/{boardId}/columns/{columnId}/tasks/{taskId}")]
+    Task<IApiResponse<ApiEnvelope<object>>> UpdateTaskCompletionAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        [Body] UpdateBoardTaskCompletionRequest request,
+        CancellationToken ct = default);
+
+    [Patch("/api/boards/{boardId}/columns/{columnId}/tasks/{taskId}")]
+    Task<IApiResponse<ApiEnvelope<object>>> UpdateTaskStoryPointsAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        [Body] UpdateBoardTaskStoryPointsRequest request,
+        CancellationToken ct = default);
+
+    [Patch("/api/boards/{boardId}/columns/{columnId}/tasks/{taskId}")]
+    Task<IApiResponse<ApiEnvelope<object>>> UpdateTaskTimeboxAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        [Body] UpdateBoardTaskTimeboxRequest request,
+        CancellationToken ct = default);
+
     [Delete("/api/boards/{boardId}/columns/{columnId}/tasks/{taskId}")]
     Task<IApiResponse<ApiEnvelope<object>>> DeleteTaskAsync(
         Guid boardId,

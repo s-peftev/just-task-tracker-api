@@ -108,6 +108,27 @@ public interface IBoardApiService
         Guid? assigneeId,
         CancellationToken ct = default);
 
+    Task UpdateBoardTaskCompletionAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        bool isDone,
+        CancellationToken ct = default);
+
+    Task UpdateBoardTaskStoryPointsAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        byte? storyPoints,
+        CancellationToken ct = default);
+
+    Task UpdateBoardTaskTimeboxAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        short? timeboxHours,
+        CancellationToken ct = default);
+
     Task DeleteBoardTaskAsync(
         Guid boardId,
         Guid columnId,

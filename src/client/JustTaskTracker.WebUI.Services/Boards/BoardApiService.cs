@@ -289,6 +289,57 @@ internal class BoardApiService(IBoardApi api) : IBoardApiService
         ApiResponseGuard.EnsureSuccess(response);
     }
 
+    public async Task UpdateBoardTaskCompletionAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        bool isDone,
+        CancellationToken ct = default)
+    {
+        var response = await api.UpdateTaskCompletionAsync(
+            boardId,
+            columnId,
+            taskId,
+            new UpdateBoardTaskCompletionRequest(isDone),
+            ct);
+
+        ApiResponseGuard.EnsureSuccess(response);
+    }
+
+    public async Task UpdateBoardTaskStoryPointsAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        byte? storyPoints,
+        CancellationToken ct = default)
+    {
+        var response = await api.UpdateTaskStoryPointsAsync(
+            boardId,
+            columnId,
+            taskId,
+            new UpdateBoardTaskStoryPointsRequest(storyPoints),
+            ct);
+
+        ApiResponseGuard.EnsureSuccess(response);
+    }
+
+    public async Task UpdateBoardTaskTimeboxAsync(
+        Guid boardId,
+        Guid columnId,
+        Guid taskId,
+        short? timeboxHours,
+        CancellationToken ct = default)
+    {
+        var response = await api.UpdateTaskTimeboxAsync(
+            boardId,
+            columnId,
+            taskId,
+            new UpdateBoardTaskTimeboxRequest(timeboxHours),
+            ct);
+
+        ApiResponseGuard.EnsureSuccess(response);
+    }
+
     public async Task DeleteBoardTaskAsync(
         Guid boardId,
         Guid columnId,

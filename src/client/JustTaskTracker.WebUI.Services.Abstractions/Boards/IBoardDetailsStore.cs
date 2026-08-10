@@ -59,6 +59,12 @@ public interface IBoardDetailsStore
 
     void UpdateTaskAssignee(Guid taskId, UserDto? assignee);
 
+    void UpdateTaskCompletion(Guid taskId, bool isDone);
+
+    void UpdateTaskStoryPoints(Guid taskId, byte? storyPoints);
+
+    void UpdateTaskTimebox(Guid taskId, short? timeboxHours);
+
     void SetShowOnlyMyTasks(bool showOnlyMyTasks);
 
     Task DeleteColumnAsync(Guid columnId, DeleteColumnRequest request, CancellationToken ct = default);

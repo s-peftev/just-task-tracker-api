@@ -229,6 +229,30 @@ internal sealed class BoardDetailsStore(
         UpdateTaskPreview(taskId, task => task with { Assignee = assignee });
     }
 
+    public void UpdateTaskCompletion(Guid taskId, bool isDone)
+    {
+        if (Board is null)
+            return;
+
+        UpdateTaskPreview(taskId, task => task with { IsDone = isDone });
+    }
+
+    public void UpdateTaskStoryPoints(Guid taskId, byte? storyPoints)
+    {
+        if (Board is null)
+            return;
+
+        UpdateTaskPreview(taskId, task => task with { StoryPoints = storyPoints });
+    }
+
+    public void UpdateTaskTimebox(Guid taskId, short? timeboxHours)
+    {
+        if (Board is null)
+            return;
+
+        UpdateTaskPreview(taskId, task => task with { TimeboxHours = timeboxHours });
+    }
+
     public void SetShowOnlyMyTasks(bool showOnlyMyTasks)
     {
         if (ShowOnlyMyTasks == showOnlyMyTasks)
