@@ -75,6 +75,11 @@ public class BoardTaskRepository(JustTaskTrackerDbContext context)
                         a.CreatedAtUtc,
                         new UserReadModel(a.UploadedBy!.Id, a.UploadedBy.Email, a.UploadedBy.DisplayName, a.UploadedBy.ProfilePhotoVersion)))
                     .ToList(),
+                t.Type,
+                t.IsDone,
+                t.CompletedAtUtc,
+                t.StoryPoints,
+                t.TimeboxHours,
                 t.Description,
                 t.Assignee == null
                     ? null
@@ -100,7 +105,8 @@ public class BoardTaskRepository(JustTaskTrackerDbContext context)
                     t.Id,
                     t.ColumnId,
                     t.Title,
-                    t.Description),
+                    t.Description,
+                    t.Type),
                 pageNumber,
                 pageSize,
                 ct);

@@ -22,6 +22,11 @@ public static class BoardTaskDetailsReadModelMappings
             task.Reporter.ToDto(profilePhotoUrlResolver),
             userRole,
             task.Attachments.Select(attachment => attachment.ToDto(profilePhotoUrlResolver)).ToList(),
+            task.Type,
+            task.IsDone,
+            task.CompletedAtUtc,
+            task.StoryPoints,
+            task.TimeboxHours,
             task.Description,
             task.Assignee.ToNullableDto(profilePhotoUrlResolver));
 }

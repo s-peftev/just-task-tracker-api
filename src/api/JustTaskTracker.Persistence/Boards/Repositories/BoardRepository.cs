@@ -87,7 +87,11 @@ public class BoardRepository(JustTaskTrackerDbContext context)
                                 t.Position,
                                 t.Comments.Count,
                                 t.Attachments.Count,
-                                t.AssigneeId)))),
+                                t.AssigneeId,
+                                t.Type,
+                                t.IsDone,
+                                t.StoryPoints,
+                                t.TimeboxHours)))),
                 b.Members
                     .Where(m => m.Role == BoardMemberRole.Owner)
                     .Select(m => (Guid?)m.UserId)

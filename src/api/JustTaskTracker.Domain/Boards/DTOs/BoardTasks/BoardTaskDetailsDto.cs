@@ -14,5 +14,10 @@ public record BoardTaskDetailsDto(
     UserDto Reporter,
     BoardMemberRole UserRole,
     IReadOnlyList<BoardTaskAttachmentDto> Attachments,
+    BoardTaskType Type,
+    bool IsDone,
+    DateTime? CompletedAtUtc,
+    byte? StoryPoints,
+    short? TimeboxHours,
     string? Description = null,
     UserDto? Assignee = null);

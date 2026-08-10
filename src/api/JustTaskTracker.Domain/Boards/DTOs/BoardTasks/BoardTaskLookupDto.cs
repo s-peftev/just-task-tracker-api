@@ -1,7 +1,10 @@
-﻿namespace JustTaskTracker.Domain.Boards.DTOs.BoardTasks;
+﻿using JustTaskTracker.Domain.Boards.Enums;
+
+namespace JustTaskTracker.Domain.Boards.DTOs.BoardTasks;
 
 public record BoardTaskLookupDto(
     Guid Id,
     Guid ColumnId,
     string Title,
-    string? Description);
+    string? Description,
+    BoardTaskType Type);

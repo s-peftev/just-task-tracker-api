@@ -77,7 +77,8 @@ public class CreateBoardTaskCommandHandler(
                 task.Id,
                 task.Title,
                 task.Position,
-                task.AssigneeId)), ct);
+                task.AssigneeId,
+                task.Type)), ct);
 
         return Result<BoardTaskPreviewDto>.Success(new BoardTaskPreviewDto(
             task.Id,
@@ -85,7 +86,11 @@ public class CreateBoardTaskCommandHandler(
             task.Position,
             0,
             0,
-            null));
+            null,
+            task.Type,
+            task.IsDone,
+            task.StoryPoints,
+            task.TimeboxHours));
     }
 }
 

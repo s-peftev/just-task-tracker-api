@@ -13,5 +13,10 @@ public record BoardTaskDetailsReadModel(
     UserReadModel Reporter,
     BoardMemberRole UserRole,
     IReadOnlyList<BoardTaskAttachmentReadModel> Attachments,
+    BoardTaskType Type,
+    bool IsDone,
+    DateTime? CompletedAtUtc,
+    byte? StoryPoints,
+    short? TimeboxHours,
     string? Description = null,
     UserReadModel? Assignee = null);

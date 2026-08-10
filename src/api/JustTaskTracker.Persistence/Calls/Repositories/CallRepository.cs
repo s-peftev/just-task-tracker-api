@@ -28,7 +28,7 @@ public class CallRepository(JustTaskTrackerDbContext context) : Repository<CallS
             .Select(a => new UserReadModel(a.User!.Id, a.User.Email, a.User.DisplayName, a.User.ProfilePhotoVersion))
             .ToList(),
         s.LinkedTasks
-            .Select(t => new BoardTaskLookupDto(t.Task!.Id, t.Task.ColumnId, t.Task.Title, t.Task.Description))
+            .Select(t => new BoardTaskLookupDto(t.Task!.Id, t.Task.ColumnId, t.Task.Title, t.Task.Description, t.Task.Type))
             .ToList(),
         s.Participants
             .Where(p => p.LeftAtUtc == null)
@@ -62,7 +62,7 @@ public class CallRepository(JustTaskTrackerDbContext context) : Repository<CallS
                     s.StartedAtUtc,
                     s.EndedAtUtc!.Value,
                     s.LinkedTasks
-                        .Select(t => new BoardTaskLookupDto(t.Task!.Id, t.Task.ColumnId, t.Task.Title, t.Task.Description))
+                        .Select(t => new BoardTaskLookupDto(t.Task!.Id, t.Task.ColumnId, t.Task.Title, t.Task.Description, t.Task.Type))
                         .ToList(),
                     s.Participants
                         .Select(p => new CallParticipantEventReadModel(
