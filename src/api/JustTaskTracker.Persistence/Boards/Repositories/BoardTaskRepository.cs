@@ -106,7 +106,10 @@ public class BoardTaskRepository(JustTaskTrackerDbContext context)
                     t.ColumnId,
                     t.Title,
                     t.Description,
-                    t.Type),
+                    t.Type,
+                    t.IsDone,
+                    t.StoryPoints,
+                    t.TimeboxHours),
                 pageNumber,
                 pageSize,
                 ct);

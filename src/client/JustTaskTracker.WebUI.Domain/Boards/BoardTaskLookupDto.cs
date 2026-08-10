@@ -7,4 +7,7 @@ public record BoardTaskLookupDto(
     Guid ColumnId,
     string Title,
     string? Description,
-    BoardTaskType Type);
+    BoardTaskType Type,
+    bool IsDone,
+    byte? StoryPoints,
+    short? TimeboxHours);

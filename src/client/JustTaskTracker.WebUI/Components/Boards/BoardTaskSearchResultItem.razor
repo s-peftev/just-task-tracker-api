@@ -1,8 +1,46 @@
 @using JustTaskTracker.WebUI.Domain.Boards
+@using JustTaskTracker.WebUI.Domain.Boards.Enums
 
 <button type="button"
-        class="board-task-search-result"
+        class="board-task-search-result @Class"
         @onclick="OnClickAsync">
+    <span class="board-task-search-result__header">
+        <span class="board-task-search-result__meta">
+            <span class="board-task-search-result__type board-task-search-result__type--@TypeModifierClass">
+                [@TypeLabel]
+            </span>
+
+            @if (HasOpenTimebox)
+            {
+                <span class="board-task-search-result__estimate board-task-search-result__estimate--open"
+                      title="Unlimited timebox"
+                      aria-label="Unlimited timebox">
+                    [
+                    <svg class="board-task-search-result__estimate-infinity"
+                         viewBox="0 0 24 24"
+                         aria-hidden="true"
+                         focusable="false">
+                        <path d="M18.178 8c5.096 0 5.096 8 0 8-5.095 0-7.133-8-12.739-8-4.585 0-4.585 8 0 8 5.606 0 7.644-8 12.74-8z"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2.25"
+                              stroke-linecap="round"
+                              stroke-linejoin="round" />
+                    </svg>
+                    ]
+                </span>
+            }
+            else if (EstimateLabel is not null)
+            {
+                <span class="board-task-search-result__estimate">@EstimateLabel</span>
+            }
+        </span>
+
+        <span class="board-task-search-result__status @(Task.IsDone ? "board-task-search-result__status--done" : null)">
+            @StatusLabel
+        </span>
+    </span>
+
     <span class="board-task-search-result__title" title="@Task.Title">@Task.Title</span>
     <span class="board-task-search-result__description" title="@Task.Description">@GetDescription()</span>
 </button>
@@ -13,6 +51,35 @@
 
     [Parameter, EditorRequired]
     public EventCallback<BoardTaskLookupDto> OnClick { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    private string TypeLabel => Task.Type switch
+    {
+        BoardTaskType.Bug => "Bug",
+        BoardTaskType.Spike => "Spike",
+        _ => "Story",
+    };
+
+    private string TypeModifierClass => Task.Type switch
+    {
+        BoardTaskType.Bug => "bug",
+        BoardTaskType.Spike => "spike",
+        _ => "story",
+    };
+
+    private string StatusLabel => Task.IsDone ? "Done" : "In process";
+
+    private bool HasOpenTimebox =>
+        Task.Type == BoardTaskType.Spike && Task.TimeboxHours is null;
+
+    private string? EstimateLabel => Task.Type switch
+    {
+        BoardTaskType.Story => $"[ {Task.StoryPoints ?? 0} SP ]",
+        BoardTaskType.Spike when Task.TimeboxHours is { } hours => $"[ {hours}h ]",
+        _ => null,
+    };
 
     private string GetDescription() =>
         string.IsNullOrWhiteSpace(Task.Description) ? "No description" : Task.Description;

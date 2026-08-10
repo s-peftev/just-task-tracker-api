@@ -1,5 +1,8 @@
 .board-task-search-result {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.375rem;
     width: 100%;
     box-sizing: border-box;
     margin: 0;
@@ -19,9 +22,96 @@
     border-color: var(--jtt-stroke-accent);
 }
 
+.board-task-search-result--linked {
+    border-color: var(--jtt-stroke-accent);
+}
+
+.board-task-search-result__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.board-task-search-result__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.board-task-search-result__type {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--jtt-radius-sm);
+    border: 1px solid transparent;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+}
+
+.board-task-search-result__type--story {
+    color: var(--jtt-text-strong);
+    background-color: var(--jtt-accent);
+    border-color: var(--jtt-accent);
+}
+
+.board-task-search-result__type--bug {
+    color: var(--jtt-text-danger);
+    background-color: var(--jtt-overlay-danger-10);
+    border-color: color-mix(in srgb, var(--jtt-text-danger) 40%, transparent);
+}
+
+.board-task-search-result__type--spike {
+    color: var(--jtt-accent-archive);
+    background-color: color-mix(in srgb, var(--jtt-accent-archive) 16%, transparent);
+    border-color: color-mix(in srgb, var(--jtt-accent-archive) 40%, transparent);
+}
+
+.board-task-search-result__estimate {
+    flex-shrink: 0;
+    color: var(--jtt-text-primary);
+    font-size: 0.75rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.board-task-search-result__estimate--open {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+}
+
+.board-task-search-result__estimate-infinity {
+    display: block;
+    width: 0.95rem;
+    height: 0.95rem;
+    flex-shrink: 0;
+}
+
+.board-task-search-result__status {
+    flex-shrink: 0;
+    color: var(--jtt-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.board-task-search-result__status--done {
+    color: var(--jtt-accent);
+}
+
 .board-task-search-result__title {
     display: block;
-    margin: 0 0 0.375rem;
+    margin: 0;
     color: var(--jtt-text-primary);
     font-size: var(--jtt-font-size-body);
     font-weight: var(--jtt-font-weight-strong);

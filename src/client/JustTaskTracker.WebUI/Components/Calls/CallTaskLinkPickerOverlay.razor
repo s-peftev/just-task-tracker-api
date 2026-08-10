@@ -1,3 +1,4 @@
+@using JustTaskTracker.WebUI.Components.Boards
 @using JustTaskTracker.WebUI.Components.Shared
 @using JustTaskTracker.WebUI.Domain.Boards
 @using JustTaskTracker.WebUI.Infrastructure
@@ -56,12 +57,9 @@
                     @foreach (var task in PickerStore.LinkedTasks)
                     {
                         <li class="board-members-overlay__item">
-                            <button type="button"
-                                    class="call-task-link-picker-overlay__task-select-btn call-task-link-picker-overlay__task-select-btn--linked"
-                                    @onclick="() => PickerStore.Toggle(task)">
-                                <span class="call-task-link-picker-overlay__task-title" title="@task.Title">@task.Title</span>
-                                <span class="call-task-link-picker-overlay__task-description" title="@task.Description">@GetDescription(task)</span>
-                            </button>
+                            <BoardTaskSearchResultItem Task="task"
+                                                       Class="board-task-search-result--linked"
+                                                       OnClick="OnToggleAsync" />
                         </li>
                     }
 
@@ -88,12 +86,7 @@
                         @foreach (var task in NotLinkedTasks)
                         {
                             <li class="board-members-overlay__item">
-                                <button type="button"
-                                        class="call-task-link-picker-overlay__task-select-btn"
-                                        @onclick="() => PickerStore.Toggle(task)">
-                                    <span class="call-task-link-picker-overlay__task-title" title="@task.Title">@task.Title</span>
-                                    <span class="call-task-link-picker-overlay__task-description" title="@task.Description">@GetDescription(task)</span>
-                                </button>
+                                <BoardTaskSearchResultItem Task="task" OnClick="OnToggleAsync" />
                             </li>
                         }
                     }
@@ -158,8 +151,11 @@
         }
     }
 
-    private static string GetDescription(BoardTaskLookupDto task) =>
-        string.IsNullOrWhiteSpace(task.Description) ? "No description" : task.Description;
+    private Task OnToggleAsync(BoardTaskLookupDto task)
+    {
+        PickerStore.Toggle(task);
+        return Task.CompletedTask;
+    }
 
     private void Close() => PickerStore.Close();
 }
